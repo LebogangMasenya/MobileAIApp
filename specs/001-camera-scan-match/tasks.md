@@ -35,11 +35,11 @@ Per `plan.md`'s Project Structure: `apps/mobile/` (Expo client) and `apps/api/` 
 
 **Purpose**: Project initialization — this is a greenfield repo, no app code exists yet.
 
-- [ ] T001 Create top-level structure: `apps/mobile/`, `apps/api/`, and root `/lessons/` directories per `plan.md`
-- [ ] T002 [P] Initialize `apps/mobile` as an Expo (managed workflow) TypeScript project with NativeWind and `react-native-reanimated` configured
-- [ ] T003 [P] Initialize `apps/api` as a Next.js TypeScript project configured for Vercel Serverless Functions
-- [ ] T004 [P] Configure shared ESLint + strict TypeScript compiler settings (`noImplicitAny`, no `any` escapes) across `apps/mobile` and `apps/api` per the constitution's Verification Rule
-- [ ] T005 [P] Configure Expo custom Dev Client / prebuild setup in `apps/mobile` to support a native Swift module target (required for on-device vision in Phase 3)
+- [X] T001 Create top-level structure: `apps/mobile/`, `apps/api/`, and root `/lessons/` directories per `plan.md`
+- [X] T002 [P] Initialize `apps/mobile` as an Expo (managed workflow) TypeScript project with NativeWind and `react-native-reanimated` configured
+- [X] T003 [P] Initialize `apps/api` as a Next.js TypeScript project configured for Vercel Serverless Functions
+- [X] T004 [P] Configure shared ESLint + strict TypeScript compiler settings (`noImplicitAny`, no `any` escapes) across `apps/mobile` and `apps/api` per the constitution's Verification Rule
+- [X] T005 [P] Configure Expo custom Dev Client / prebuild setup in `apps/mobile` to support a native Swift module target (required for on-device vision in Phase 3)
 
 ---
 
@@ -50,14 +50,14 @@ Per `plan.md`'s Project Structure: `apps/mobile/` (Expo client) and `apps/api/` 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete. T006 additionally blocks every individual UI-creating task in later phases (see Constitution Gate Notice above).
 
 - [ ] T006 Complete Figma/MCP design review and UX critique for the camera capture screen, person-selection overlay, segmentation overlay, bubble markers, and garment detail modal; obtain user approval of the optimization plan before any UI task below proceeds (Constitution Principle II)
-- [ ] T007 [P] Define shared TypeScript entity types (ScanSession, DetectedPerson, DetectedGarment, MatchedProduct, SimilarItem, Store) in `apps/mobile/src/types/scan.ts` per `data-model.md`
-- [ ] T008 [P] Define shared TypeScript entity types (same entities) in `apps/api/src/types/scan.ts` per `data-model.md`
-- [ ] T009 [P] Implement typed API client base with `ErrorResponse` handling in `apps/mobile/src/services/apiClient.ts` per `contracts/scan-api.md`
+- [X] T007 [P] Define shared TypeScript entity types (ScanSession, DetectedPerson, DetectedGarment, MatchedProduct, SimilarItem, Store) in `apps/mobile/src/types/scan.ts` per `data-model.md`
+- [X] T008 [P] Define shared TypeScript entity types (same entities) in `apps/api/src/types/scan.ts` per `data-model.md`
+- [X] T009 [P] Implement typed API client base with `ErrorResponse` handling in `apps/mobile/src/services/apiClient.ts` per `contracts/scan-api.md`
 - [ ] T010 [P] Implement reusable `ScanErrorFallback` UI component (non-destructive fallback, covers FR-012/FR-013/FR-015/FR-018 message states) in `apps/mobile/src/features/scan/components/ScanErrorFallback.tsx` (depends on T006 design review)
-- [ ] T011 [P] Implement `useRegionPreference` hook (device locale inference + SecureStore override) in `apps/mobile/src/features/scan/hooks/useRegionPreference.ts`
-- [ ] T012 Implement backend route skeleton (request validation, typed responses) for `POST /v1/scans`, `POST /v1/scans/:id/people/:id/garments`, and `GET /v1/scans/:id/garments/:id/matches` in `apps/api/src/routes/scans.ts` (depends on T008)
-- [ ] T013 [P] Implement vision dispatch service skeleton (platform-based on-device-vs-cloud routing per `research.md` §3, supports both whole-photo person detection and per-person garment segmentation) in `apps/api/src/services/vision/dispatch.ts`
-- [ ] T014 [P] Implement matching service skeleton (external product-search integration point, server-side region filtering per `data-model.md`) in `apps/api/src/services/matching/matchService.ts`
+- [X] T011 [P] Implement `useRegionPreference` hook (device locale inference + SecureStore override) in `apps/mobile/src/features/scan/hooks/useRegionPreference.ts`
+- [X] T012 Implement backend route skeleton (request validation, typed responses) for `POST /v1/scans`, `POST /v1/scans/:id/people/:id/garments`, and `GET /v1/scans/:id/garments/:id/matches` in `apps/api/src/routes/scans.ts` (depends on T008)
+- [X] T013 [P] Implement vision dispatch service skeleton (platform-based on-device-vs-cloud routing per `research.md` §3, supports both whole-photo person detection and per-person garment segmentation) in `apps/api/src/services/vision/dispatch.ts`
+- [X] T014 [P] Implement matching service skeleton (external product-search integration point, server-side region filtering per `data-model.md`) in `apps/api/src/services/matching/matchService.ts`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin (UI tasks remain individually or transitively gated on T006).
 
@@ -79,10 +79,10 @@ Per `plan.md`'s Project Structure: `apps/mobile/` (Expo client) and `apps/api/` 
 - [ ] T020 [US1] Implement `BubbleMarker` component (positioned via the selected person's `DetectedGarment.boundingRegion`, spring entrance animation) in `apps/mobile/src/features/scan/components/BubbleMarker.tsx` (depends on T006 design review)
 - [ ] T021 [US1] Implement `useSegmentPerson` hook (calls `POST /v1/scans/:id/people/:id/garments` when a person is selected via PersonSelector, try/catch + error-fallback wiring) in `apps/mobile/src/features/scan/hooks/useSegmentPerson.ts` (depends on T009, T010)
 - [ ] T022 [US1] Implement `ScanScreen` composing CameraView/ImportPicker → useCreateScan → PersonSelector (when multiple people detected) → useSegmentPerson → SegmentationOverlay → BubbleMarker list, allowing the user to select a different person after finishing one (FR-016, FR-017) in `apps/mobile/app/(tabs)/scan.tsx` (depends on T006 design review transitively via T015/T016/T018/T019/T020; also depends on T017, T021)
-- [ ] T023 [US1] Implement `POST /v1/scans` handler wiring the vision dispatch service, returning detected people (auto-populating garments only for a single detected person) and mapping failures to `ScanSession` failure shape (FR-012) in `apps/api/src/routes/scans.ts` (depends on T012, T013)
-- [ ] T024 [US1] Implement `POST /v1/scans/:scanId/people/:personId/garments` handler for per-person segmentation, including a failure message when the backend cannot process the detected people (FR-018) in `apps/api/src/routes/scans.ts` (depends on T012, T013, T023)
-- [ ] T025 [US1] Implement the on-device Apple Vision native module bridge (Swift) for iOS, supporting both multi-person detection and per-person garment segmentation, in `apps/mobile/modules/vision-segmentation/` (depends on T005)
-- [ ] T026 [US1] Wire the cloud vision fallback path in the vision dispatch service for Android and low-confidence cases in `apps/api/src/services/vision/dispatch.ts` (depends on T013)
+- [X] T023 [US1] Implement `POST /v1/scans` handler wiring the vision dispatch service, returning detected people (auto-populating garments only for a single detected person) and mapping failures to `ScanSession` failure shape (FR-012) in `apps/api/src/routes/scans.ts` (depends on T012, T013)
+- [X] T024 [US1] Implement `POST /v1/scans/:scanId/people/:personId/garments` handler for per-person segmentation, including a failure message when the backend cannot process the detected people (FR-018) in `apps/api/src/routes/scans.ts` (depends on T012, T013, T023)
+- [X] T025 [US1] Implement the on-device Apple Vision native module bridge (Swift) for iOS, supporting both multi-person detection and per-person garment segmentation, in `apps/mobile/modules/vision-segmentation/` (depends on T005)
+- [X] T026 [US1] Wire the cloud vision fallback path in the vision dispatch service for Android and low-confidence cases in `apps/api/src/services/vision/dispatch.ts` (depends on T013)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently, including multi-person selection.
 
@@ -100,7 +100,7 @@ Per `plan.md`'s Project Structure: `apps/mobile/` (Expo client) and `apps/api/` 
 - [ ] T028 [P] [US2] Implement `GarmentDetailModal` component (garment details, store list with CTA, similar items list; when no exact match and no similar items exist, show a message suggesting the user try again with a different angle or photo, FR-013) in `apps/mobile/src/features/scan/components/GarmentDetailModal.tsx` (depends on T006 design review)
 - [ ] T029 [US2] Wire `BubbleMarker` tap → `GarmentDetailModal` open via `useGarmentMatches` in `apps/mobile/app/(tabs)/scan.tsx` (depends on T006 design review transitively via T028; also depends on T022, T027)
 - [ ] T030 [US2] Implement modal-dismiss behavior that preserves the segmented photo and bubble state (FR-014) in `apps/mobile/app/(tabs)/scan.tsx` (depends on T006 design review transitively via T028; also depends on T029)
-- [ ] T031 [US2] Implement `GET /v1/scans/:id/garments/:id/matches` handler wiring the matching service (FR-013 no-match handling on the backend side) in `apps/api/src/routes/scans.ts` (depends on T012, T014)
+- [X] T031 [US2] Implement `GET /v1/scans/:id/garments/:id/matches` handler wiring the matching service (FR-013 no-match handling on the backend side) in `apps/api/src/routes/scans.ts` (depends on T012, T014)
 - [ ] T032 [US2] Implement store call-to-action outbound navigation in `apps/mobile/src/features/scan/components/GarmentDetailModal.tsx` (depends on T006 design review transitively via T028)
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently.
@@ -115,7 +115,7 @@ Per `plan.md`'s Project Structure: `apps/mobile/` (Expo client) and `apps/api/` 
 
 ### Implementation for User Story 3
 
-- [ ] T033 [P] [US3] Implement region-based filtering in the matching service (`SimilarItem.regionAvailable` enforced server-side per `data-model.md`) in `apps/api/src/services/matching/matchService.ts` (depends on T014)
+- [X] T033 [P] [US3] Implement region-based filtering in the matching service (`SimilarItem.regionAvailable` enforced server-side per `data-model.md`) in `apps/api/src/services/matching/matchService.ts` (depends on T014)
 - [ ] T034 [P] [US3] Implement `RegionPreferenceSettings` UI (view/change the region override, FR-010a) in `apps/mobile/src/features/scan/components/RegionPreferenceSettings.tsx` (depends on T006 design review, T011)
 - [ ] T035 [US3] Wire the active region value into `useCreateScan` and `useGarmentMatches` request payloads in `apps/mobile/src/features/scan/hooks/useCreateScan.ts` and `apps/mobile/src/features/scan/hooks/useGarmentMatches.ts` (depends on T011, T017, T027)
 - [ ] T036 [US3] Implement the explicit "no regional match found" empty state in `GarmentDetailModal` (FR-011, US3 scenario 2) in `apps/mobile/src/features/scan/components/GarmentDetailModal.tsx` (depends on T006 design review transitively via T028; also depends on T033)
@@ -132,7 +132,7 @@ Per `plan.md`'s Project Structure: `apps/mobile/` (Expo client) and `apps/api/` 
 - [ ] T038 [P] Run all `quickstart.md` validation scenarios end-to-end on an iOS device/simulator, including the multi-person selection scenario
 - [ ] T039 Verify strict TypeScript compilation and lint pass with zero errors across `apps/mobile` and `apps/api` (Constitution Verification Rule)
 - [ ] T040 [P] Inline why-comment review pass over custom hooks, the native vision module bridge, and state-holding logic (Constitution Principle VI — Educational Code Architecture)
-- [ ] T041 [P] Add latency instrumentation/logging around the `GET /v1/scans/:id/garments/:id/matches` handler to measure against SC-003's ≤2s target in `apps/api/src/routes/scans.ts` (depends on T031)
+- [X] T041 [P] Add latency instrumentation/logging around the `GET /v1/scans/:id/garments/:id/matches` handler to measure against SC-003's ≤2s target in `apps/api/src/routes/scans.ts` (depends on T031)
 
 ---
 
