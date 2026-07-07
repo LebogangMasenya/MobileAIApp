@@ -49,6 +49,8 @@ This file acts as a permanent directive for Claude Code, Fable 5, and all subage
 - **Local Retrospective:** Maintain a `/lessons` folder at the root. Document critical debugging breakthroughs (e.g., fixing an unexpected Expo prebuild error or Cocoapods conflict) to preserve context for future development cycles.
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+Active plan: `specs/001-camera-scan-match/plan.md` (Camera Scan-to-Match
+Garment Identification). See that file, plus `research.md`, `data-model.md`,
+and `contracts/scan-api.md` in the same directory, for the technologies,
+project structure, and design decisions currently in effect.
 <!-- SPECKIT END -->
