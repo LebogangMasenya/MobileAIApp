@@ -29,8 +29,11 @@ Serverless Functions (Vercel)
 **Storage**: N/A for v1 (no first-party database); short-lived edge cache for
 match responses only (see `research.md` §6)
 
-**Testing**: Jest + React Native Testing Library for components/hooks; contract
-and integration tests against the serverless API handlers
+**Testing**: Deferred for v1 — no automated test tasks are scheduled (per
+`/speckit-analyze` finding F1, reconciled with `tasks.md`); `quickstart.md`'s
+manual scenarios are the validation method for this feature. Jest + React
+Native Testing Library (mobile) and a lightweight HTTP test client (API) are
+the reference tools to reach for if/when automated tests are prioritized.
 
 **Target Platform**: iOS 17+ (on-device segmentation, primary target) and
 Android 13+ (cloud-vision fallback path), both via Expo managed workflow with a
@@ -113,12 +116,14 @@ apps/
 │   ├── src/
 │   │   ├── features/
 │   │   │   └── scan/
-│   │   │       ├── components/  # CameraView, SegmentationOverlay,
-│   │   │       │                # BubbleMarker, GarmentDetailModal — atomic,
+│   │   │       ├── components/  # CameraView, ImportPicker, PersonSelector,
+│   │   │       │                # SegmentationOverlay, BubbleMarker,
+│   │   │       │                # GarmentDetailModal — atomic,
 │   │   │       │                # presentation-only (Principle VIII)
-│   │   │       └── hooks/       # useCreateScan, useGarmentMatches,
-│   │   │                        # useRegionPreference — API calls + device
-│   │   │                        # state live here, not in components
+│   │   │       └── hooks/       # useCreateScan, useSegmentPerson,
+│   │   │                        # useGarmentMatches, useRegionPreference —
+│   │   │                        # API calls + device state live here, not
+│   │   │                        # in components
 │   │   ├── services/            # typed API client (contracts/scan-api.md)
 │   │   └── types/                # shared TS interfaces (data-model.md)
 │   └── tests/
@@ -126,7 +131,8 @@ apps/
 │       └── integration/
 └── api/                          # Node.js + TypeScript on Next.js Serverless
     ├── src/
-    │   ├── routes/                # POST /v1/scans, GET /v1/scans/:id/garments/:id/matches
+    │   ├── routes/                # POST /v1/scans, POST /v1/scans/:id/people/:id/garments,
+    │   │                          # GET /v1/scans/:id/garments/:id/matches
     │   ├── services/
     │   │   ├── vision/            # on-device-vs-cloud dispatch (research.md §3)
     │   │   └── matching/          # product-search provider integration (research.md §6)

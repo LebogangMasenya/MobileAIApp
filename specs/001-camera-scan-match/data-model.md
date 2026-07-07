@@ -13,22 +13,39 @@ Represents a single capture-or-import event and its lifecycle.
 | `createdAt` | `string` (ISO 8601) | Capture/import timestamp |
 | `status` | `"processing" \| "segmented" \| "failed"` | `failed` covers FR-012 (no identifiable person/garments) |
 | `regionUsed` | `string` (ISO 3166-1 alpha-2) | Region applied when this session's matches were resolved (FR-010) |
-| `garments` | `DetectedGarment[]` | Populated once `status === "segmented"` |
-| `failureReason` | `string \| null` | Human-readable reason when `status === "failed"` (FR-012) |
+| `people` | `DetectedPerson[]` | Populated once `status === "segmented"`; one entry per distinguishable person found in the photo |
+| `garments` | `DetectedGarment[]` | Garments for whichever `DetectedPerson` is currently selected. For a single-person photo, this is auto-populated for that one person immediately; for a multi-person photo, this stays empty until the user selects a person (FR-016) |
+| `failureReason` | `string \| null` | Human-readable reason when `status === "failed"` — covers both "no person/garments detected" (FR-012) and "people detected but could not be processed" (FR-018) |
 
 **Validation rules**:
-- `garments` MUST be empty while `status !== "segmented"`.
+- `people` and `garments` MUST both be empty while `status !== "segmented"`.
 - `status === "failed"` MUST always carry a non-null `failureReason`.
+- When `people.length > 1`, `garments` MUST stay empty until a person is explicitly selected (see `contracts/scan-api.md`'s per-person endpoint); when `people.length === 1`, `garments` MAY be populated immediately for that person.
 
-**State transitions**: `processing → segmented` (success) or `processing → failed` (no person/garments detected, FR-012). Terminal states do not transition further; a retry creates a new `ScanSession`.
+**State transitions**: `processing → segmented` (success) or `processing → failed` (no person/garments detected, FR-012; or people detected but unprocessable, FR-018). Terminal states do not transition further; a retry creates a new `ScanSession`.
 
-## DetectedGarment
+## DetectedPerson
 
-One segmented clothing item within a `ScanSession`. Positioning data drives bubble placement (FR-005).
+One distinguishable person identified within a `ScanSession`'s photo. Positioning data drives the tap-to-select UI (FR-016); a session with more than one `DetectedPerson` requires the user to pick one before any garments are shown for it.
 
 | Field | Type | Notes |
 |---|---|---|
 | `id` | `string` (UUID) | Unique within its `ScanSession` |
+| `boundingRegion` | `{ x: number; y: number; width: number; height: number }` | Normalized (0–1) coordinates relative to the photo, used to render the tap target (FR-016) |
+| `segmentationStatus` | `"pending" \| "segmented" \| "failed"` | `pending` until the user selects this person and per-person garment segmentation is requested; `failed` covers a per-person processing failure distinct from the whole-session failure in FR-018 |
+
+**Validation rules**:
+- `boundingRegion` coordinates MUST be within `[0, 1]`.
+- A `DetectedPerson` transitions `pending → segmented` only in response to the user selecting them (FR-016), never automatically when `people.length > 1` — this is what keeps multi-person photos from segmenting everyone at once.
+
+## DetectedGarment
+
+One segmented clothing item within a `ScanSession`, associated with the specific `DetectedPerson` it was found on. Positioning data drives bubble placement (FR-005).
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` (UUID) | Unique within its `ScanSession` |
+| `personId` | `string` | FK to `DetectedPerson.id` — which selected person this garment belongs to |
 | `category` | `string` | e.g. `"jacket"`, `"pants"`, `"shoes"` — open vocabulary, not a fixed enum, since garment taxonomy will evolve |
 | `confidence` | `number` (0–1) | Detection confidence from the segmentation pipeline |
 | `boundingRegion` | `{ x: number; y: number; width: number; height: number }` | Normalized (0–1) coordinates relative to the photo, used to position the bubble (FR-005) |
@@ -89,7 +106,7 @@ Not part of the API contracts — lives entirely on-device per the "no account r
 ## Relationships
 
 ```text
-ScanSession 1───* DetectedGarment 1───* MatchedProduct (0 or 1 exact match + N similar items)
-                                    └──* SimilarItem (extends MatchedProduct)
+ScanSession 1───* DetectedPerson 1───* DetectedGarment 1───* MatchedProduct (0 or 1 exact match + N similar items)
+                                                          └──* SimilarItem (extends MatchedProduct)
 MatchedProduct/SimilarItem *───1 Store
 ```

@@ -42,6 +42,18 @@ bubble icon appearing over each distinct garment, for both input paths.
 4. **Given** a person is wearing only one recognizable garment, **When** the
    photo is captured or imported and segmented, **Then** exactly one bubble
    icon appears (no bubbles are placed over non-garment regions).
+5. **Given** a captured or imported photo contains multiple distinct people,
+   **When** segmentation completes, **Then** the user is shown a way to
+   select which person to segment first (e.g., tapping that person in the
+   photo) rather than bubbles appearing for everyone at once.
+6. **Given** the user has finished reviewing bubbles for a selected person,
+   **When** they choose to segment a different person in the same photo,
+   **Then** they can select another detected person with a simple tap and
+   see that person's garment bubbles.
+7. **Given** the backend is unable to process the people detected in a
+   multi-person photo, **When** segmentation is attempted, **Then** the app
+   displays a clear failure message to the user rather than a blank or
+   broken result.
 
 ---
 
@@ -115,6 +127,8 @@ retailer within the user's region, or an explicit message if none exists.
   clothing items? The app must show a clear, friendly failure state that
   invites the user to retry rather than presenting a blank or broken result.
 - How does the system handle multiple people in the same captured frame?
+  Resolved by FR-016/FR-017/FR-018: the user selects one person at a time to
+  segment via a tap, and can select another detected person afterward.
 - What happens when segmentation succeeds for a garment but no store or
   similar item can be found for it?
 - What happens when camera permission is denied or no camera is available on
@@ -168,20 +182,38 @@ retailer within the user's region, or an explicit message if none exists.
   alternatives instead.
 - **FR-012**: System MUST show a clear, non-technical failure state when a
   captured photo contains no identifiable person or clothing items.
-- **FR-013**: System MUST show a clear failure state when no store or similar
-  item can be found for a specific detected garment.
+- **FR-013**: When no store or similar item can be found for a specific
+  detected garment, System MUST display a message suggesting the user try
+  again with a different angle or photo of the garment, rather than showing
+  a blank or broken result.
 - **FR-014**: Dismissing the detail modal MUST preserve the segmented photo
   and its bubbles so the user can select a different bubble afterward.
 - **FR-015**: If camera or photo library access is denied, the system MUST
-  guide the user to the remaining available input path (import or live
-  capture, respectively) rather than presenting a dead end.
+  display a clear message informing the user that access was denied.
+- **FR-016**: When a captured or imported photo contains multiple distinct
+  people, System MUST let the user select which person to segment via a tap
+  on that person within the photo, rather than automatically segmenting all
+  people at once.
+- **FR-017**: After a user finishes with a selected person's garment
+  bubbles, System MUST allow selecting a different detected person in the
+  same photo to segment next, repeatable for each additional detected
+  person.
+- **FR-018**: If the backend is unable to process the people detected in a
+  multi-person photo, System MUST display a clear failure message to the
+  user rather than a blank or broken result.
 
 ### Key Entities *(include if feature involves data)*
 
 - **Scan Session**: A single capture event; holds the captured photo, its
-  capture timestamp, and the set of garments detected within it.
-- **Detected Garment**: One segmented clothing item within a Scan Session;
-  has a position on the photo (for bubble placement), a category/type, and a
+  capture timestamp, the people detected within it, and the set of garments
+  detected for whichever person is currently selected.
+- **Detected Person**: One distinguishable person identified within a Scan
+  Session's photo; has a position on the photo (for tap-to-select) and a
+  segmentation status. A Scan Session may contain multiple Detected Persons;
+  the user selects one at a time to segment its garments (FR-016, FR-017).
+- **Detected Garment**: One segmented clothing item within a Scan Session,
+  associated with the specific Detected Person it was found on; has a
+  position on the photo (for bubble placement), a category/type, and a
   detection confidence.
 - **Matched Product**: A specific store listing identified as matching, or
   closely matching, a Detected Garment; includes the offering store, region
@@ -221,9 +253,10 @@ retailer within the user's region, or an explicit message if none exists.
   results are not assumed to persist beyond the current session unless a
   future amendment specifies otherwise.
 - A captured frame may contain multiple garments worn by one person, and all
-  clearly visible distinct garments receive their own bubble; handling of
-  multiple distinct people in a single frame is treated as an edge case
-  rather than a primary scenario for this initial scope.
+  clearly visible distinct garments receive their own bubble. A frame may
+  also contain multiple distinct people; in that case the user segments one
+  person at a time via explicit selection (FR-016, FR-017) rather than the
+  app attempting to segment and match everyone simultaneously.
 - Store call-to-actions may route through affiliate-tracked links consistent
   with the project's affiliate monetization model; this spec does not
   mandate a specific tracking mechanism.

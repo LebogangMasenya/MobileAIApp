@@ -20,15 +20,21 @@ interface CreateScanRequest {
 
 ```ts
 interface CreateScanResponse {
-  scanSession: ScanSession;          // status: "segmented", garments populated
+  scanSession: ScanSession;
+  // status: "segmented"; `people` always populated.
+  // people.length === 1 → `garments` is auto-populated for that person.
+  // people.length > 1  → `garments` stays empty until the client calls the
+  //                       per-person endpoint below for a selected person (FR-016).
 }
 ```
 
-**Response — 200 OK (segmentation ran but found nothing)**:
+**Response — 200 OK (segmentation ran but found nothing, or people could not be processed)**:
 
 ```ts
 interface CreateScanFailedResponse {
-  scanSession: ScanSession;          // status: "failed", failureReason set (FR-012)
+  scanSession: ScanSession;
+  // status: "failed"; failureReason set — covers both "no person/garments
+  // detected" (FR-012) and "people detected but could not be processed" (FR-018).
 }
 ```
 
@@ -44,8 +50,39 @@ interface ErrorResponse {
 ```
 
 **Notes**:
-- A "no person/garments detected" outcome is a normal 200/201 business result (`status: "failed"` in the body), not an HTTP error — it's an expected case the client renders a friendly retry state for (FR-012), not an exceptional one.
+- A "no person/garments detected" outcome is a normal 200/201 business result (`status: "failed"` in the body), not an HTTP error — it's an expected case the client renders a friendly retry state for (FR-012), not an exceptional one. The same applies to "people detected but could not be processed" (FR-018) — same `status: "failed"` shape, different `failureReason` text.
 - `UPSTREAM_UNAVAILABLE` covers the cloud-vision-path failure case (research.md §3 Android/fallback path) and MUST map to the network-loss edge case's fallback UI on the client.
+
+## POST /v1/scans/{scanId}/people/{personId}/garments
+
+Request per-person garment segmentation after the user selects a `DetectedPerson` from a multi-person photo (FR-016). Not called at all for single-person photos, since those are auto-populated by `POST /v1/scans`. Callable again for a different `personId` in the same scan when the user chooses to segment another person (FR-017).
+
+**Request**: no body — `scanId` and `personId` are route params.
+
+**Response — 200 OK**:
+
+```ts
+interface PersonGarmentsResponse {
+  personId: string;
+  status: "segmented" | "failed";
+  garments: DetectedGarment[];   // empty when status is "failed"
+  failureReason: string | null;  // set when status is "failed"
+}
+```
+
+**Response — 4xx/5xx**:
+
+```ts
+interface ErrorResponse {
+  error: {
+    code: "PERSON_NOT_FOUND" | "UPSTREAM_UNAVAILABLE" | "INTERNAL_ERROR";
+    message: string;
+  };
+}
+```
+
+**Notes**:
+- A per-person segmentation failure (`status: "failed"` in the 200 body) is distinct from the whole-scan-level FR-018 failure — this is "this specific person couldn't be segmented," not "the photo's people couldn't be processed at all." Both render the same class of friendly failure message to the user; only the trigger differs.
 
 ## GET /v1/scans/{scanId}/garments/{garmentId}/matches
 
@@ -74,7 +111,7 @@ interface ErrorResponse {
 ```
 
 **Notes**:
-- `exactMatch: null` combined with `similarItems: []` is the full "no store or similar item found" state (FR-013) — the client renders this as one clear failure state rather than two separate empty-list checks.
+- `exactMatch: null` combined with `similarItems: []` is the full "no store or similar item found" state (FR-013) — the client renders this as one clear message suggesting the user try again with a different angle or photo, rather than two separate empty-list checks or a blank list.
 
 ## Client error-handling contract (applies to both endpoints)
 

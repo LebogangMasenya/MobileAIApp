@@ -31,8 +31,12 @@
 
 ## Notes
 
-- All items pass. Both clarifications were resolved with the user: input
-  source is live capture + photo import (FR-002, FR-002a), and region
+- All items pass. Both original clarifications were resolved with the user:
+  input source is live capture + photo import (FR-002, FR-002a), and region
   determination is inferred-with-user-override (FR-010, FR-010a).
+- Amended after `/speckit-analyze` (E1, E2, C1 remediations): FR-013 and
+  FR-015 simplified to plain user-facing messages; FR-016/FR-017/FR-018 and
+  the Detected Person entity added for multi-person selection. Spec remains
+  fully passing.
 - Items marked incomplete require spec updates before `/speckit-clarify` or
   `/speckit-plan`.

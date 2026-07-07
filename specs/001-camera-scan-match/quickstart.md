@@ -6,7 +6,7 @@ Validation guide to confirm the feature works end-to-end once implemented. Maps 
 
 - A custom Expo Dev Client build installed on an iOS 17+ device or simulator (the on-device Apple Vision module requires this — Expo Go is not sufficient, see `research.md` §3).
 - Backend API deployed or running locally (Next.js serverless functions, per `research.md` §4) and reachable from the device/simulator.
-- A test photo set covering: a person wearing 2+ distinct garments; a person wearing exactly 1 recognizable garment; a photo with no person in it; a low-resolution/cropped photo; a garment known to be sold only outside the test device's region.
+- A test photo set covering: a person wearing 2+ distinct garments; a person wearing exactly 1 recognizable garment; a photo with no person in it; a low-resolution/cropped photo; a garment known to be sold only outside the test device's region; a photo containing 2+ distinct people.
 - Device network toggle available (to test the offline/connectivity-loss edge cases).
 
 ## Setup
@@ -35,6 +35,9 @@ npm run dev          # local Next.js dev server, or `vercel dev`
 5. Repeat using the import path (photo library / a saved screenshot) instead of live capture.
 6. **Expect**: identical segmentation animation and bubble behavior on the imported photo.
 7. Repeat with a single-garment photo. **Expect**: exactly one bubble.
+8. Capture/import a photo containing 2+ distinct people. **Expect**: instead of bubbles appearing for everyone, the app shows a way to select which person to segment (tap target per person).
+9. Tap one detected person. **Expect**: that person's garments segment and their bubbles appear; the other detected person(s) show no bubbles yet.
+10. After reviewing that person's bubbles, select a different detected person in the same photo. **Expect**: the app switches to segmenting and showing bubbles for the newly selected person.
 
 ### 2. Garment detail, store match, similar items (User Story 2, P1)
 
@@ -55,9 +58,10 @@ npm run dev          # local Next.js dev server, or `vercel dev`
 ### 4. Failure and edge-case states (Defensive Error Scaffolding)
 
 1. Capture/import a photo with no person in it. **Expect**: a clear, friendly failure state (FR-012), not a blank screen or crash.
-2. Trigger a garment with no findable store/similar item (use a test double or a stub upstream response). **Expect**: the FR-013 no-match state, not a broken empty list.
-3. Deny camera permission, then confirm the import path is still reachable and offered (FR-015); deny photo library permission and confirm the reverse.
+2. Trigger a garment with no findable store/similar item (use a test double or a stub upstream response). **Expect**: a message suggesting the user try again with a different angle or photo (FR-013), not a broken empty list.
+3. Deny camera permission. **Expect**: a clear message that access was denied (FR-015). Deny photo library permission and confirm the same for the import path.
 4. Toggle network off after a successful capture, before the detail modal loads. **Expect**: a retryable failure state distinguishing this from a bad-photo failure (per the `UPSTREAM_UNAVAILABLE` contract in `contracts/scan-api.md`).
+5. Using a test double that simulates the backend failing to process a multi-person photo's people, attempt a scan. **Expect**: a clear failure message (FR-018), not a blank or broken result.
 
 ## Success Check
 
