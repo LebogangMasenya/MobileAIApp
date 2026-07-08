@@ -20,6 +20,13 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="scan">
+        <NativeTabs.Trigger.Label>Scan</NativeTabs.Trigger.Label>
+        {/* SF Symbol keeps us icon-asset-free on iOS (the primary platform);
+            Android has no drawable yet and falls back to the label. */}
+        <NativeTabs.Trigger.Icon sf="camera.viewfinder" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="explore">
         <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

@@ -10,6 +10,7 @@
  */
 
 import type { BoundingRegion, DetectedGarment, DetectedPerson } from '../../types/scan';
+import { MockVisionProvider } from './mockProvider';
 
 /**
  * Thrown when the upstream vision service can't be reached or isn't
@@ -128,7 +129,22 @@ class CloudVisionProvider implements VisionProvider {
   }
 }
 
-const cloudProvider: VisionProvider = new CloudVisionProvider();
+/**
+ * Provider selection: explicit VISION_PROVIDER=mock wins; otherwise mock is
+ * the automatic dev fallback when no real endpoint is configured outside
+ * production. In production an unconfigured endpoint stays a loud
+ * UPSTREAM_UNAVAILABLE — silently mocking real user traffic would be worse
+ * than failing.
+ */
+function selectProvider(): VisionProvider {
+  if (process.env.VISION_PROVIDER === 'mock') return new MockVisionProvider();
+  if (!process.env.VISION_API_URL && process.env.NODE_ENV !== 'production') {
+    return new MockVisionProvider();
+  }
+  return new CloudVisionProvider();
+}
+
+const visionProvider: VisionProvider = selectProvider();
 
 /**
  * Detect every distinguishable person in a photo, assigning ids and the
@@ -136,7 +152,7 @@ const cloudProvider: VisionProvider = new CloudVisionProvider();
  * (FR-016 — see data-model.md's DetectedPerson state rule).
  */
 export async function detectPeople(photo: ArrayBuffer): Promise<DetectedPerson[]> {
-  const result = await cloudProvider.detectPeople(photo);
+  const result = await visionProvider.detectPeople(photo);
   return result.people.map((person) => ({
     id: crypto.randomUUID(),
     boundingRegion: person.boundingRegion,
@@ -154,7 +170,7 @@ export async function segmentGarments(
   photo: ArrayBuffer,
   person: DetectedPerson,
 ): Promise<DetectedGarment[]> {
-  const result = await cloudProvider.segmentGarments(photo, person.boundingRegion);
+  const result = await visionProvider.segmentGarments(photo, person.boundingRegion);
   return result.garments
     .filter((garment) => garment.confidence >= MIN_GARMENT_CONFIDENCE)
     .map((garment) => ({

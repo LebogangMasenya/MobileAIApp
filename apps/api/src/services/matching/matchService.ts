@@ -12,6 +12,7 @@
 
 import type { DetectedGarment, MatchedProduct, SimilarItem, Store } from '../../types/scan';
 import { UpstreamUnavailableError } from '../vision/dispatch';
+import { mockSearch } from './mockProvider';
 
 export interface MatchResult {
   exactMatch: MatchedProduct | null;
@@ -44,6 +45,14 @@ async function queryProvider(
   garment: DetectedGarment,
   region: string,
 ): Promise<ProviderResponse> {
+  // Same selection rule as the vision dispatch: explicit mock wins, mock is
+  // the automatic dev fallback when unconfigured, production stays loud.
+  const useMock =
+    process.env.PRODUCT_SEARCH_PROVIDER === 'mock' ||
+    (!process.env.PRODUCT_SEARCH_API_URL && process.env.NODE_ENV !== 'production');
+  if (useMock) {
+    return mockSearch(garment, region);
+  }
   const url = process.env.PRODUCT_SEARCH_API_URL;
   if (!url) {
     throw new UpstreamUnavailableError('PRODUCT_SEARCH_API_URL is not configured');
