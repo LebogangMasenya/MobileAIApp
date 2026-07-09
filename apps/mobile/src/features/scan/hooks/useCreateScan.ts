@@ -11,6 +11,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { createScan } from '../../../services/apiClient';
+import { appendRecentScan } from '../../../services/recent-scans-store';
 import type { ScanSession, ScanSource } from '../../../types/scan';
 import type { CapturedPhoto } from '../components/CameraView';
 
@@ -59,6 +60,17 @@ export function useCreateScan(): UseCreateScanResult {
             });
           } else {
             setState({ phase: 'ready', session });
+            // Feature 002 integration: record the scan for Home's "Recently
+            // scanned" rail. Fire-and-forget — the store is best-effort and a
+            // write failure must never disturb a successful scan.
+            void appendRecentScan({
+              scanId: session.id,
+              thumbnailUri: photo.uri,
+              capturedAt: session.createdAt,
+              // Multi-person photos start at 0 (garments arrive per person);
+              // useSegmentPerson bumps the count when segmentation lands.
+              garmentCount: session.garments.length,
+            });
           }
           return;
         }

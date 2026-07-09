@@ -12,6 +12,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { segmentPerson } from '../../../services/apiClient';
+import { updateRecentScanGarmentCount } from '../../../services/recent-scans-store';
 import type { DetectedGarment } from '../../../types/scan';
 
 export type SegmentPersonState =
@@ -52,6 +53,9 @@ export function useSegmentPerson(): UseSegmentPersonResult {
             });
           } else {
             setState({ phase: 'segmented', personId, garments: result.data.garments });
+            // Feature 002 integration: multi-person scans recorded 0 garments
+            // at creation; reflect this person's results on the Home rail.
+            void updateRecentScanGarmentCount(scanId, result.data.garments.length);
           }
           return;
         case 'api':

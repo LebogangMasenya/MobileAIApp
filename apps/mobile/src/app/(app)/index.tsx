@@ -1,98 +1,80 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+/**
+ * Home dashboard (FR-012..FR-016; figma p3 with critiques D5/D6/D9 applied).
+ *
+ * Three mutually exclusive content states below the greeting header:
+ *   error   → retry card (never a blank rail — FR-016)
+ *   empty   → first-run invitation + "What you will love" rows (D5 + D9)
+ *   content → "Recently scanned" rail (marketing rows retired — D9)
+ *
+ * This screen also carries the signed-in half of the gate-crossing motion
+ * (contracts §5 row 3): the header and content spring in via `entering`
+ * animations when the (app) group mounts after sign-in.
+ */
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
+import { useCallback } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { BottomTabInset } from '@/constants/theme';
+import { EmptyScansState } from '@/features/home/components/EmptyScansState';
+import { FeatureHighlights } from '@/features/home/components/FeatureHighlights';
+import { GreetingHeader } from '@/features/home/components/GreetingHeader';
+import { RecentScansRail } from '@/features/home/components/RecentScansRail';
+import { useRecentScans } from '@/features/home/hooks/useRecentScans';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { scans, isLoading, error, retry } = useRecentScans();
+
+  // The header is dark in both themes; flip the status-bar text to light only
+  // while Home is focused (tabs keep screens mounted, so a mount-scoped
+  // <StatusBar> would leak onto sibling tabs).
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle('light', true);
+      return () => setStatusBarStyle('auto', true);
+    }, []),
+  );
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+    <View className="flex-1 bg-surface">
+      <GreetingHeader />
+      <ScrollView contentContainerStyle={{ paddingTop: 24, paddingBottom: BottomTabInset + 32, gap: 24 }}>
+        {error ? (
+          <Animated.View
+            entering={FadeInDown.springify().mass(0.8).damping(18).stiffness(160)}
+            className="mx-6 items-center gap-3 rounded-3xl bg-surface-card px-6 py-8">
+            <Text className="text-center text-base font-semibold text-ink">{error}</Text>
+            <Text className="text-center text-sm text-ink-muted">
+              Your scans are still on this device — let&apos;s try that again.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={retry}
+              className="mt-1 min-h-12 items-center justify-center self-stretch rounded-full bg-primary px-6 active:bg-primary-pressed">
+              <Text className="text-base font-semibold text-on-primary">Retry</Text>
+            </Pressable>
+          </Animated.View>
+        ) : isLoading ? null : scans.length === 0 ? (
+          // Zero scans: invitation + highlight rows together (FR-014).
+          <>
+            <EmptyScansState onScanFirstOutfit={() => router.push('/scan')} />
+            <FeatureHighlights />
+          </>
+        ) : (
+          <RecentScansRail
+            scans={scans}
+            // FR-015 (partial for now): feature 001 keeps scan sessions
+            // in-memory and anonymous — there is no scanId-addressable results
+            // route to reopen yet. Until a results screen exists (needs a
+            // GET /v1/scans/:id), a card opens the scan experience itself.
+            onPressScan={() => router.push('/scan')}
+            onSeeAll={() => Alert.alert('Scan history', 'The full history view is coming soon.')}
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        )}
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});

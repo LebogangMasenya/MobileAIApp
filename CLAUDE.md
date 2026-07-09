@@ -49,8 +49,12 @@ This file acts as a permanent directive for Claude Code, Fable 5, and all subage
 - **Local Retrospective:** Maintain a `/lessons` folder at the root. Document critical debugging breakthroughs (e.g., fixing an unexpected Expo prebuild error or Cocoapods conflict) to preserve context for future development cycles.
 
 <!-- SPECKIT START -->
-Active plan: `specs/001-camera-scan-match/plan.md` (Camera Scan-to-Match
-Garment Identification). See that file, plus `research.md`, `data-model.md`,
-and `contracts/scan-api.md` in the same directory, for the technologies,
-project structure, and design decisions currently in effect.
+Active plan: `specs/002-entry-funnel-dashboard/plan.md` (Entry Funnel & Home
+Dashboard: mock auth provider behind an AuthContract seam — real Clerk
+deferred to a follow-up — Stack.Protected route gate, splash airlock, Home
+dashboard + Account hub; zero new dependencies). See that file, plus
+`research.md`, `data-model.md`, and `contracts/auth-navigation.md` in the
+same directory, for the technologies, project structure, and design
+decisions currently in effect.
+Prior feature: `specs/001-camera-scan-match/` (Camera Scan-to-Match).
 <!-- SPECKIT END -->

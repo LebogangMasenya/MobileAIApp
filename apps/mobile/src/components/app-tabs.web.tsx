@@ -27,8 +27,8 @@ export default function AppTabs() {
           <TabTrigger name="scan" href="/scan" asChild>
             <TabButton>Scan</TabButton>
           </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
+          <TabTrigger name="account" href="/account" asChild>
+            <TabButton>Account</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -51,8 +51,10 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 }
 
 export function CustomTabList(props: TabListProps) {
+  // useColorScheme() is 'light' | 'dark' | null | undefined; fall back to light
+  // when unresolved instead of indexing Colors with null/undefined.
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const colors = Colors[scheme ?? 'light'];
 
   return (
     <View {...props} style={styles.tabListContainer}>
@@ -66,11 +68,8 @@ export function CustomTabList(props: TabListProps) {
         <ExternalLink href="https://docs.expo.dev" asChild>
           <Pressable style={styles.externalPressable}>
             <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
+            {/* SymbolView's `name` is a single SF Symbol string, not a per-platform map. */}
+            <SymbolView tintColor={colors.text} name="arrow.up.right.square" size={12} />
           </Pressable>
         </ExternalLink>
       </ThemedView>

@@ -5,7 +5,9 @@ import Animated, { Keyframe, Easing } from 'react-native-reanimated';
 import classes from './animated-icon.module.css';
 const DURATION = 300;
 
-export function AnimatedSplashOverlay() {
+// Same signature as the native variant; web has no native splash to airlock,
+// so the overlay is a no-op there (web is layout-spot-check only).
+export function AnimatedSplashOverlay(_props: { ready: boolean }) {
   return null;
 }
 
