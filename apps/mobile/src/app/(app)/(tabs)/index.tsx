@@ -19,6 +19,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { BottomTabInset } from '@/constants/theme';
 import { EmptyScansState } from '@/features/home/components/EmptyScansState';
+import { DemoScanCard } from '@/features/visual-search/components/DemoScanCard';
 import { FeatureHighlights } from '@/features/home/components/FeatureHighlights';
 import { GreetingHeader } from '@/features/home/components/GreetingHeader';
 import { RecentScansRail } from '@/features/home/components/RecentScansRail';
@@ -74,6 +75,10 @@ export default function HomeScreen() {
             onSeeAll={() => Alert.alert('Scan history', 'The full history view is coming soon.')}
           />
         )}
+
+        {/* Feature 003: visual-search demo entry — rendered in every content
+            state so the demo is always one tap from launch (FR-011). */}
+        <DemoScanCard onPress={() => router.push('/demo-scan')} />
       </ScrollView>
     </View>
   );

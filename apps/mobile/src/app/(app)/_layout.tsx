@@ -1,12 +1,19 @@
 /**
- * Signed-in group layout — the tab UI lives INSIDE the protected group so a
- * sign-out unmounts every authenticated surface (tabs included) in one guard
- * flip; keeping tabs at the root would leave app chrome visible to signed-out
- * users (research §7).
+ * Signed-in group layout. The tab UI lives INSIDE the protected group so a
+ * sign-out unmounts every authenticated surface in one guard flip
+ * (feature 002, research §7). Since feature 003 this is a Stack: the tab
+ * group plus full-screen routes that sit OUTSIDE the tab bar (the visual-
+ * search demo) — native stack transitions are UIKit spring-driven and
+ * gesture-cancellable (Constitution V).
  */
 
-import AppTabs from '@/components/app-tabs';
+import { Stack } from 'expo-router';
 
 export default function AppLayout() {
-  return <AppTabs />;
+  return (
+    <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="demo-scan" />
+    </Stack>
+  );
 }

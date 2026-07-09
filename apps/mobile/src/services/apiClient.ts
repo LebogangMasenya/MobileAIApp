@@ -17,6 +17,7 @@ import type {
   PersonGarmentsResponse,
   ScanSource,
 } from '../types/scan';
+import type { VisualSearchResponse } from '../types/visual-search';
 
 /**
  * `network` is deliberately separate from `api`: a network failure means
@@ -33,6 +34,11 @@ export type ApiResult<T> =
 const RETRYABLE_CODES: ReadonlySet<string> = new Set([
   'UPSTREAM_UNAVAILABLE',
   'INTERNAL_ERROR',
+  // Visual search (feature 003): provider hiccups and timeouts are transient;
+  // INVALID_INPUT is deliberately absent — resubmitting the same bad input
+  // cannot succeed.
+  'UPSTREAM_FAILED',
+  'UPSTREAM_TIMEOUT',
 ]);
 
 /**
@@ -135,6 +141,30 @@ export function segmentPerson(
     `/v1/scans/${encodeURIComponent(scanId)}/people/${encodeURIComponent(personId)}/garments`,
     { method: 'POST' },
   );
+}
+
+export interface VisualSearchParams {
+  /**
+   * Optional override. The demo flow sends NOTHING here: the server resolves
+   * its own publicly-hosted demo image (the bundled mobile asset is for
+   * display only — a local asset path would be meaningless to the provider).
+   */
+  imageUrl?: string;
+  /** Optional ISO 3166-1 alpha-2 country hint. */
+  country?: string;
+}
+
+/**
+ * POST /v1/visual-search (feature 003) — demo image → normalized ProductMatch
+ * list via the real Google Lens search. Empty `matches` is a successful
+ * no-results outcome, not a failure (US2).
+ */
+export function runVisualSearch(params: VisualSearchParams = {}): Promise<ApiResult<VisualSearchResponse>> {
+  return request<VisualSearchResponse>('/v1/visual-search', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(params),
+  });
 }
 
 /**
