@@ -49,12 +49,12 @@ This file acts as a permanent directive for Claude Code, Fable 5, and all subage
 - **Local Retrospective:** Maintain a `/lessons` folder at the root. Document critical debugging breakthroughs (e.g., fixing an unexpected Expo prebuild error or Cocoapods conflict) to preserve context for future development cycles.
 
 <!-- SPECKIT START -->
-Active plan: `specs/003-visual-search-api/plan.md` (Visual Search Demo Flow:
-demo image + 001's scan glow on a new /demo-scan screen, real SerpApi Google
-Lens search behind POST /v1/visual-search, strict six-field ProductMatch
-cards; zero new dependencies). See that file plus `research.md`,
-`data-model.md`, and `contracts/visual-search-api.md` in the same directory.
-Prior features: `specs/002-entry-funnel-dashboard/` (mock auth, route gate,
-Home dashboard — implemented, manual quickstart pending) and
-`specs/001-camera-scan-match/` (Camera Scan-to-Match).
+Active plan: `specs/004-interactive-scan-overlay/plan.md` (shared
+scan-overlay module: useCoordinateTransform + NeonTracingOverlay +
+InteractionHotspot, Reanimated-only — no SVG dep — adopted by both the 001
+camera flow and the 003 demo screen). Tasks in the same directory.
+Prior features: `specs/003-visual-search-api/` (visual search demo —
+implemented, manual quickstart pending), `specs/002-entry-funnel-dashboard/`
+(mock auth, route gate, Home dashboard — implemented, manual quickstart
+pending), `specs/001-camera-scan-match/` (Camera Scan-to-Match).
 <!-- SPECKIT END -->

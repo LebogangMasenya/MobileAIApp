@@ -15,14 +15,15 @@
 
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NeonTracingOverlay } from '@/features/scan-overlay/components/NeonTracingOverlay';
+import { useCoordinateTransform } from '@/features/scan-overlay/hooks/useCoordinateTransform';
 import { ScanErrorFallback } from '@/features/scan/components/ScanErrorFallback';
-import { SegmentationOverlay } from '@/features/scan/components/SegmentationOverlay';
-import { containFrame, type Size } from '@/features/scan/utils/layout';
+import { type Size } from '@/features/scan/utils/layout';
 import { ProductMatchCard } from '@/features/visual-search/components/ProductMatchCard';
 import { useVisualSearch } from '@/features/visual-search/hooks/useVisualSearch';
 
@@ -39,7 +40,9 @@ export default function DemoScanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { state, run, retry } = useVisualSearch();
-  const [containerSize, setContainerSize] = useState<Size | null>(null);
+  // Feature 004: shared geometry hook replaces the hand-wired onLayout +
+  // containFrame ceremony — same single-source math underneath.
+  const { onContainerLayout, frame } = useCoordinateTransform(DEMO_IMAGE_SIZE);
 
   // The demo starts itself — the screen IS the trigger (FR-012). The hook's
   // in-flight guard makes re-mounts and fast re-entries harmless.
@@ -47,17 +50,11 @@ export default function DemoScanScreen() {
     void run();
   }, [run]);
 
-  const frame = containerSize ? containFrame(containerSize, DEMO_IMAGE_SIZE) : null;
   const searching = state.phase === 'searching' || state.phase === 'idle';
   const matches = state.phase === 'done' ? state.matches : [];
 
   return (
-    <View
-      className="flex-1 bg-black"
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setContainerSize({ width, height });
-      }}>
+    <View className="flex-1 bg-black" onLayout={onContainerLayout}>
       <Image
         source={require('@/assets/images/demo-garment.jpeg')}
         style={{ flex: 1 }}
@@ -65,9 +62,9 @@ export default function DemoScanScreen() {
         accessibilityLabel="Demo outfit photo"
       />
 
-      {/* Scanning glow — 001's visual language, looping for the whole search. */}
+      {/* Neon perimeter trace (feature 004) — loops for the whole search. */}
       {frame && searching ? (
-        <SegmentationOverlay region={FULL_OUTFIT_REGION} frame={frame} mode="active" />
+        <NeonTracingOverlay region={FULL_OUTFIT_REGION} frame={frame} mode="tracing" />
       ) : null}
 
       {searching ? (

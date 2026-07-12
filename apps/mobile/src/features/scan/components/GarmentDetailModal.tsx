@@ -236,7 +236,7 @@ export function GarmentDetailModal({
   const requestClose = () => {
     // Animate out first, then unmount the RN Modal — unmounting immediately
     // would hard-cut the exit and violate the "no sudden state jumps" bar.
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design; event-handler writes are the documented API
+    // Reanimated shared values are mutable by design; event-handler writes are the documented API
     translateY.value = withSpring(screenHeight, CLOSE_SPRING, (finished) => {
       if (finished) runOnJS(finishClose)();
     });
@@ -254,12 +254,12 @@ export function GarmentDetailModal({
       // sheet feels anchored rather than rigidly clamped — and because the
       // position is spring/gesture-driven the whole time, the interaction is
       // fully interruptible (Constitution Principle V).
-      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design; gesture-worklet writes are the documented API
+      // Reanimated shared values are mutable by design; gesture-worklet writes are the documented API
       translateY.value = next >= 0 ? next : next / 12;
     })
     .onEnd((event) => {
       if (event.translationY > DISMISS_DISTANCE || event.velocityY > DISMISS_VELOCITY) {
-        // eslint-disable-next-line react-hooks/immutability -- see onUpdate note
+        // see onUpdate note
         translateY.value = withSpring(screenHeight, CLOSE_SPRING, (finished) => {
           if (finished) runOnJS(finishClose)();
         });

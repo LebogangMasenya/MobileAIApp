@@ -14,19 +14,23 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BubbleMarker, BUBBLE_DIAMETER } from '@/features/scan/components/BubbleMarker';
+import {
+  HOTSPOT_DIAMETER,
+  InteractionHotspot,
+} from '@/features/scan-overlay/components/InteractionHotspot';
+import { NeonTracingOverlay } from '@/features/scan-overlay/components/NeonTracingOverlay';
+import { useCoordinateTransform } from '@/features/scan-overlay/hooks/useCoordinateTransform';
 import { CameraView, type CapturedPhoto } from '@/features/scan/components/CameraView';
 import { GarmentDetailModal } from '@/features/scan/components/GarmentDetailModal';
 import { ImportPicker } from '@/features/scan/components/ImportPicker';
 import { PersonSelector } from '@/features/scan/components/PersonSelector';
 import { RegionPreferenceSettings } from '@/features/scan/components/RegionPreferenceSettings';
 import { ScanErrorFallback } from '@/features/scan/components/ScanErrorFallback';
-import { SegmentationOverlay } from '@/features/scan/components/SegmentationOverlay';
 import { useCreateScan } from '@/features/scan/hooks/useCreateScan';
 import { useGarmentMatches } from '@/features/scan/hooks/useGarmentMatches';
 import { useRegionPreference } from '@/features/scan/hooks/useRegionPreference';
 import { useSegmentPerson } from '@/features/scan/hooks/useSegmentPerson';
-import { containFrame, resolveBubblePlacements, type Size } from '@/features/scan/utils/layout';
+import { resolveBubblePlacements } from '@/features/scan/utils/layout';
 import type { DetectedGarment, ScanSource } from '@/types/scan';
 
 interface ActivePhoto extends CapturedPhoto {
@@ -46,7 +50,6 @@ export default function ScanScreen() {
   const matches = useGarmentMatches();
 
   const [photo, setPhoto] = useState<ActivePhoto | null>(null);
-  const [containerSize, setContainerSize] = useState<Size | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [activeGarment, setActiveGarment] = useState<DetectedGarment | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -76,9 +79,13 @@ export default function ScanScreen() {
       : session.people[0] ?? null
     : null;
 
-  const frame =
-    photo && containerSize ? containFrame(containerSize, { width: photo.width, height: photo.height }) : null;
-  const bubblePlacements = frame ? resolveBubblePlacements(garments, frame, BUBBLE_DIAMETER) : [];
+  // Feature 004: shared geometry hook — same single-source math, minus the
+  // hand-wired measurement ceremony. A zero size (no photo yet) yields a
+  // null frame, exactly like the old photo && containerSize guard.
+  const { onContainerLayout, frame } = useCoordinateTransform(
+    photo ? { width: photo.width, height: photo.height } : { width: 0, height: 0 },
+  );
+  const bubblePlacements = frame ? resolveBubblePlacements(garments, frame, HOTSPOT_DIAMETER) : [];
 
   const resetAll = useCallback(() => {
     setPhoto(null);
@@ -180,12 +187,7 @@ export default function ScanScreen() {
   const isBusy = scan.state.phase === 'submitting' || seg.state.phase === 'segmenting';
 
   return (
-    <View
-      className="flex-1 bg-black"
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setContainerSize({ width, height });
-      }}>
+    <View className="flex-1 bg-black" onLayout={onContainerLayout}>
       <Image
         source={{ uri: photo.uri }}
         style={{ flex: 1 }}
@@ -193,23 +195,25 @@ export default function ScanScreen() {
         accessibilityLabel="Your captured photo"
       />
 
-      {/* Segmentation glow: active while working, rest once bubbles own the scene. */}
+      {/* Neon trace (feature 004): tracing while segmenting, settled once
+          hotspots own the scene — same handoff contract as the old glow. */}
       {frame && selectedPerson && (seg.state.phase === 'segmenting' || garments.length > 0) ? (
-        <SegmentationOverlay
+        <NeonTracingOverlay
           region={selectedPerson.boundingRegion}
           frame={frame}
-          mode={garments.length > 0 ? 'rest' : 'active'}
+          mode={garments.length > 0 ? 'settled' : 'tracing'}
         />
       ) : null}
 
       {frame
         ? bubblePlacements.map((placement, index) => (
-            <BubbleMarker
+            <InteractionHotspot
               key={placement.garment.id}
-              garment={placement.garment}
               center={placement.center}
               index={index}
-              onPress={handleBubblePress}
+              label={placement.garment.category}
+              accessibilityLabel={`View matches for ${placement.garment.category}`}
+              onPress={() => handleBubblePress(placement.garment)}
             />
           ))
         : null}

@@ -73,7 +73,7 @@ export function CameraView({ onCapture, disabled = false, bottomLeftAccessory }:
     // two scans and race their results.
     if (disabled || capturing || !cameraRef.current) return;
     setCapturing(true);
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design; event-handler writes are the documented API
+    // Reanimated shared values are mutable by design; event-handler writes are the documented API
     morph.value = withSpring(1, MORPH_SPRING);
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
