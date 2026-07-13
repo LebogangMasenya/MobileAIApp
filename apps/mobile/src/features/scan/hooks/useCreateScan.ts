@@ -76,7 +76,9 @@ export function useCreateScan(): UseCreateScanResult {
             });
             // Feature 005: the scan becomes a Vault entry (matches merge in
             // later via useGarmentMatches). Deterministic id per session so
-            // repeat writes replace, never duplicate.
+            // repeat writes replace, never duplicate. Feature 006: imageSize
+            // (crop math) + garment breakdown — single-person scans populate
+            // here; multi-person garments arrive via useSegmentPerson.
             void upsertEntry({
               id: `vlt_${session.id}`,
               scanId: session.id,
@@ -84,6 +86,13 @@ export function useCreateScan(): UseCreateScanResult {
               capturedAt: session.createdAt,
               matches: [],
               source: 'camera',
+              imageSize: { width: photo.width, height: photo.height },
+              garments: session.garments.map((garment) => ({
+                id: garment.id,
+                category: garment.category,
+                boundingRegion: garment.boundingRegion,
+                matches: [],
+              })),
             });
           }
           return;

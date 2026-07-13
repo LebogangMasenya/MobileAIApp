@@ -17,6 +17,11 @@ interface VaultEntryCardProps {
   index: number;
   onPress: (entry: VaultEntry) => void;
   onDelete: (entry: VaultEntry) => void;
+  /**
+   * Present ONLY while the vault is public (feature 006 FR-003) — the
+   * affordance is absent, not disabled, in private mode.
+   */
+  onShare?: (entry: VaultEntry) => void;
 }
 
 function formatDay(iso: string): string {
@@ -26,7 +31,7 @@ function formatDay(iso: string): string {
     : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-export function VaultEntryCard({ entry, index, onPress, onDelete }: VaultEntryCardProps) {
+export function VaultEntryCard({ entry, index, onPress, onDelete, onShare }: VaultEntryCardProps) {
   const confirmDelete = () => {
     Alert.alert('Delete this look?', 'Its photo and matches are removed from this device.', [
       { text: 'Cancel', style: 'cancel' },
@@ -64,6 +69,22 @@ export function VaultEntryCard({ entry, index, onPress, onDelete }: VaultEntryCa
           </Text>
         </View>
       </Pressable>
+
+      {/* Share affordance — mounts/unmounts with the public toggle (springified). */}
+      {onShare ? (
+        <Animated.View
+          entering={FadeInDown.springify().mass(0.7).damping(16).stiffness(200)}
+          className="absolute right-2 top-2 z-10">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share this look"
+            hitSlop={8}
+            onPress={() => onShare(entry)}
+            className="h-9 w-9 items-center justify-center rounded-full bg-black/45 active:bg-black/65">
+            <Text className="text-sm text-white">⤴</Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
     </Animated.View>
   );
 }

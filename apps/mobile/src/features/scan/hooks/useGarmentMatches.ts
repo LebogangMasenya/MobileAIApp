@@ -62,7 +62,9 @@ export function useGarmentMatches(): UseGarmentMatchesResult {
             ...(result.data.exactMatch ? [result.data.exactMatch] : []),
             ...result.data.similarItems,
           ].map(matchedProductToProductMatch);
-          void mergeMatches(scanId, normalized);
+          // Feature 006: garmentId groups these into the garment's own list
+          // (plus the look aggregate) — the shareable per-garment unit.
+          void mergeMatches(scanId, normalized, garmentId);
           return;
         }
         case 'api':

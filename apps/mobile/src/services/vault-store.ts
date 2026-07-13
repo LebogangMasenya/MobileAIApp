@@ -19,7 +19,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { ProductMatch } from '@/types/visual-search';
-import type { VaultEntry, VaultIndex } from '@/types/vault';
+import type { VaultEntry, VaultGarment, VaultIndex } from '@/types/vault';
 
 function imagesDir(): Directory {
   return new Directory(Paths.document, 'vault', 'images');
@@ -38,17 +38,54 @@ function ensureDirs(): void {
   imagesDir().create({ intermediates: true, idempotent: true });
 }
 
+function isVaultGarment(candidate: unknown): candidate is VaultGarment {
+  if (typeof candidate !== 'object' || candidate === null) return false;
+  const record = candidate as Record<string, unknown>;
+  const region = record.boundingRegion as Record<string, unknown> | null;
+  return (
+    typeof record.id === 'string' &&
+    typeof record.category === 'string' &&
+    typeof region === 'object' &&
+    region !== null &&
+    typeof region.x === 'number' &&
+    typeof region.y === 'number' &&
+    typeof region.width === 'number' &&
+    typeof region.height === 'number' &&
+    Array.isArray(record.matches)
+  );
+}
+
 function isVaultEntry(candidate: unknown): candidate is VaultEntry {
   if (typeof candidate !== 'object' || candidate === null) return false;
   const record = candidate as Record<string, unknown>;
+  const size = record.imageSize as Record<string, unknown> | null;
   return (
     typeof record.id === 'string' &&
     (typeof record.scanId === 'string' || record.scanId === null) &&
     typeof record.imageUri === 'string' &&
     typeof record.capturedAt === 'string' &&
     Array.isArray(record.matches) &&
-    (record.source === 'camera' || record.source === 'demo')
+    (record.source === 'camera' || record.source === 'demo') &&
+    (record.imageSize === null ||
+      (typeof size === 'object' &&
+        size !== null &&
+        typeof size.width === 'number' &&
+        typeof size.height === 'number')) &&
+    Array.isArray(record.garments) &&
+    (record.garments as unknown[]).every(isVaultGarment)
   );
+}
+
+/**
+ * v1 → v2 mapping (feature 006, invariant V5): migration happens IN MEMORY —
+ * v1 fields pass through untouched, the new fields get honest empties — and
+ * only the next successful full write persists the index as v2. A crash
+ * anywhere in between leaves the v1 file intact; a partially-upgraded index
+ * cannot exist.
+ */
+function migrateV1Entry(candidate: unknown): unknown {
+  if (typeof candidate !== 'object' || candidate === null) return candidate;
+  return { ...(candidate as Record<string, unknown>), imageSize: null, garments: [] };
 }
 
 /** Read the raw entry list — salvaging valid entries from partial corruption (V3). */
@@ -57,16 +94,15 @@ async function readEntries(): Promise<{ entries: VaultEntry[]; failed: boolean }
     const file = indexFile();
     if (!file.exists) return { entries: [], failed: false }; // absent ≠ broken: first run
     const parsed: unknown = JSON.parse(await file.text());
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      (parsed as VaultIndex).v !== 1 ||
-      !Array.isArray((parsed as VaultIndex).entries)
-    ) {
+    if (typeof parsed !== 'object' || parsed === null) return { entries: [], failed: true };
+    const version = (parsed as { v?: unknown }).v;
+    const rawEntries = (parsed as { entries?: unknown }).entries;
+    if ((version !== 1 && version !== 2) || !Array.isArray(rawEntries)) {
       return { entries: [], failed: true };
     }
+    const mapped = version === 1 ? rawEntries.map(migrateV1Entry) : rawEntries;
     // Per-entry validation: one bad record never poisons the rest.
-    return { entries: (parsed as VaultIndex).entries.filter(isVaultEntry), failed: false };
+    return { entries: mapped.filter(isVaultEntry), failed: false };
   } catch {
     return { entries: [], failed: true };
   }
@@ -76,7 +112,7 @@ function writeEntries(entries: VaultEntry[]): void {
   ensureDirs();
   const file = indexFile();
   if (!file.exists) file.create({ intermediates: true });
-  file.write(JSON.stringify({ v: 1, entries } satisfies VaultIndex));
+  file.write(JSON.stringify({ v: 2, entries } satisfies VaultIndex));
 }
 
 // ---------------------------------------------------------------------------
@@ -122,16 +158,55 @@ export async function upsertEntry(entry: VaultEntry): Promise<void> {
   }
 }
 
-/** Merge matches into the entry linked to scanId — dedupe by source_url (V2). No-op if absent. */
-export async function mergeMatches(scanId: string, matches: ProductMatch[]): Promise<void> {
+function dedupeAppend(existing: ProductMatch[], incoming: ProductMatch[]): ProductMatch[] {
+  const known = new Set(existing.map((match) => match.source_url));
+  return [...existing, ...incoming.filter((match) => !known.has(match.source_url))];
+}
+
+/**
+ * Merge matches into the entry linked to scanId — deduped by source_url (V2)
+ * in the look AGGREGATE and, when `garmentId` is given (feature 006), in that
+ * garment's own list too. No-op if the entry is absent.
+ */
+export async function mergeMatches(scanId: string, matches: ProductMatch[], garmentId?: string): Promise<void> {
   if (matches.length === 0) return;
   try {
     const { entries } = await readEntries();
     const target = entries.find((entry) => entry.scanId === scanId);
     if (!target) return;
-    const known = new Set(target.matches.map((match) => match.source_url));
-    const merged = [...target.matches, ...matches.filter((match) => !known.has(match.source_url))];
-    writeEntries(entries.map((entry) => (entry.id === target.id ? { ...entry, matches: merged } : entry)));
+    const updated: VaultEntry = {
+      ...target,
+      matches: dedupeAppend(target.matches, matches),
+      garments: garmentId
+        ? target.garments.map((garment) =>
+            garment.id === garmentId
+              ? { ...garment, matches: dedupeAppend(garment.matches, matches) }
+              : garment,
+          )
+        : target.garments,
+    };
+    writeEntries(entries.map((entry) => (entry.id === target.id ? updated : entry)));
+  } catch {
+    // V4.
+  }
+}
+
+/**
+ * Merge a person's garments into the entry linked to scanId, by garment id —
+ * re-segmentation never duplicates and never wipes fetched matches (FR-008).
+ */
+export async function addGarments(scanId: string, garments: VaultGarment[]): Promise<void> {
+  if (garments.length === 0) return;
+  try {
+    const { entries } = await readEntries();
+    const target = entries.find((entry) => entry.scanId === scanId);
+    if (!target) return;
+    const existingIds = new Set(target.garments.map((garment) => garment.id));
+    const updated: VaultEntry = {
+      ...target,
+      garments: [...target.garments, ...garments.filter((garment) => !existingIds.has(garment.id))],
+    };
+    writeEntries(entries.map((entry) => (entry.id === target.id ? updated : entry)));
   } catch {
     // V4.
   }

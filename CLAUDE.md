@@ -49,13 +49,13 @@ This file acts as a permanent directive for Claude Code, Fable 5, and all subage
 - **Local Retrospective:** Maintain a `/lessons` folder at the root. Document critical debugging breakthroughs (e.g., fixing an unexpected Expo prebuild error or Cocoapods conflict) to preserve context for future development cycles.
 
 <!-- SPECKIT START -->
-Active plan: `specs/005-wardrobe-vault/plan.md` (Wardrobe Vault: Shazam-style
-pull-down scan history — expo-file-system persistence engine (the one new
-dep, dev-client rebuild), VaultEntry store, reveal gesture, image grid
-reopening GarmentDetailModal — plus the hotspot z-band rendering fix in
-features/scan-overlay). See research.md, data-model.md, and
-contracts/vault-storage-gesture.md in the same directory.
-Prior features: 004 (shared scan overlay — device verification pending),
-003 (visual search demo), 002 (mock auth + dashboard), 001 (camera scan) —
-002/003/004 have manual quickstart passes outstanding.
+Active plan: `specs/006-vault-sharing/plan.md` (Vault sharing groundwork:
+persisted Make-Vault-Public toggle arming share affordances; vault schema v2
+with per-garment records (category, region, own matches) + lossless v1
+migration; expo-image-manipulator crops (new dep, second dev-client
+rebuild); pure share-payload composer + RN built-in Share; garment picker).
+See research.md, data-model.md, contracts/sharing.md in the same directory.
+Prior features: 005 (Wardrobe Vault + hotspot fix — implemented, device
+verification pending), 004, 003, 002, 001 — several manual quickstart
+passes outstanding (005's quickstart covers most).
 <!-- SPECKIT END -->

@@ -13,6 +13,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { segmentPerson } from '../../../services/apiClient';
 import { updateRecentScanGarmentCount } from '../../../services/recent-scans-store';
+import { addGarments } from '../../../services/vault-store';
 import type { DetectedGarment } from '../../../types/scan';
 
 export type SegmentPersonState =
@@ -56,6 +57,17 @@ export function useSegmentPerson(): UseSegmentPersonResult {
             // Feature 002 integration: multi-person scans recorded 0 garments
             // at creation; reflect this person's results on the Home rail.
             void updateRecentScanGarmentCount(scanId, result.data.garments.length);
+            // Feature 006: multi-person looks gain their garment breakdown
+            // per selection — merged by garment id, never duplicated.
+            void addGarments(
+              scanId,
+              result.data.garments.map((garment) => ({
+                id: garment.id,
+                category: garment.category,
+                boundingRegion: garment.boundingRegion,
+                matches: [],
+              })),
+            );
           }
           return;
         case 'api':

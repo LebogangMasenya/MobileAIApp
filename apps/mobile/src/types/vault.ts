@@ -4,7 +4,23 @@
  * ProductMatch shape (feature 003) — see contracts §5 for the adapters.
  */
 
+import type { BoundingRegion } from '@/types/scan';
 import type { ProductMatch } from '@/types/visual-search';
+
+/**
+ * One garment within a saved look — THE shareable unit (feature 006).
+ * Stores the region (facts), never crop files (derivable cache).
+ */
+export interface VaultGarment {
+  /** Feature-001 garment id — the merge key; re-segmentation never duplicates. */
+  id: string;
+  /** Category label — picker row + share header. */
+  category: string;
+  /** Normalized (0–1) position within the look photo; crop source. */
+  boundingRegion: BoundingRegion;
+  /** THAT garment's matches, deduped by source_url, growing as fetched. */
+  matches: ProductMatch[];
+}
 
 /** One saved look. */
 export interface VaultEntry {
@@ -20,16 +36,27 @@ export interface VaultEntry {
   imageUri: string;
   /** ISO 8601 — the grid sorts newest-first. */
   capturedAt: string;
-  /** Deduped by source_url on merge (contract invariant V2). */
+  /**
+   * The AGGREGATE match view (all garments) — the grid count and detail
+   * modal read this; per-garment lists below are additive (feature 006).
+   */
   matches: ProductMatch[];
   source: 'camera' | 'demo';
+  /**
+   * Photo pixel dimensions, known at capture — required for region→pixel
+   * crop math. Null on v1-migrated and demo entries (blocks cropping only;
+   * such entries share as whole looks).
+   */
+  imageSize: { width: number; height: number } | null;
+  /** Per-garment breakdown; empty on v1-migrated and demo entries. */
+  garments: VaultGarment[];
 }
 
 /**
- * Versioned envelope for vault/index.json, so a future storage migration
- * (SQLite/server) can detect and upgrade old payloads.
+ * Versioned envelope for vault/index.json. v2 (feature 006) adds per-garment
+ * records + imageSize; v1 files are migrated losslessly on read (store V5).
  */
 export interface VaultIndex {
-  v: 1;
+  v: 2;
   entries: VaultEntry[];
 }

@@ -68,6 +68,10 @@ export function useVisualSearch(): UseVisualSearchResult {
               capturedAt: new Date().toISOString(),
               matches: result.data.matches,
               source: 'demo',
+              // No regions and a remote image: demo entries share as whole
+              // looks, text-first (specs/006 research §4).
+              imageSize: null,
+              garments: [],
             });
           }
           return;
