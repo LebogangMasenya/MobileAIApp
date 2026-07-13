@@ -91,15 +91,24 @@ export function InteractionHotspot({
         press.value = withSpring(1, PRESS_SPRING);
       }}
       onPress={onPress}
+      // Z-BAND CONTRACT (specs/005 US1): hotspots own the z-50 band, above
+      // the trace's z-10. Under Fabric (RN New Architecture), implicit
+      // sibling paint order is NOT a stacking contract — a sibling animating
+      // transform/opacity (the neon trace) can paint over later siblings that
+      // lack an explicit zIndex, which is exactly how the hotspots vanished.
       // Runtime-computed position — the documented NativeWind exception.
       style={{
         position: 'absolute',
+        zIndex: 50,
         left: center.x - HOTSPOT_DIAMETER / 2,
         top: center.y - HOTSPOT_DIAMETER / 2,
         width: HOTSPOT_DIAMETER,
         height: HOTSPOT_DIAMETER,
         alignItems: 'center',
         justifyContent: 'center',
+        // Sonar ring scales past the 44pt box — never clip it (Android
+        // clips children outside bounds by default; iOS doesn't).
+        overflow: 'visible',
       }}>
       {/* Sonar ring behind the core. */}
       <Animated.View

@@ -31,6 +31,7 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { MockAuthProvider, useAuthSession } from '@/features/auth/providers/mock-auth-provider';
@@ -39,11 +40,17 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    // The ONE provider swap point: when real auth lands, MockAuthProvider is
-    // replaced here and everything below keeps compiling (FR-024).
-    <MockAuthProvider>
-      <RootGate />
-    </MockAuthProvider>
+    // GestureHandlerRootView must sit at the very root: every GestureDetector
+    // in the tree (vault pull, detail-modal pan) resolves its native handler
+    // through it — expo-router does NOT provide one automatically, and
+    // without it gesture-handler throws at mount (feature 005 build fix).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* The ONE provider swap point: when real auth lands, MockAuthProvider
+          is replaced here and everything below keeps compiling (FR-024). */}
+      <MockAuthProvider>
+        <RootGate />
+      </MockAuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

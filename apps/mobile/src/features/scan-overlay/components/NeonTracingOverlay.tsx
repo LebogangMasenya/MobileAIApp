@@ -180,9 +180,21 @@ export function NeonTracingOverlay({ region, frame, mode }: NeonTracingOverlayPr
   return (
     <Animated.View
       pointerEvents="none"
+      // Z-BAND CONTRACT (specs/005 US1): the trace sits in the z-10 band,
+      // explicitly BELOW the hotspot layer's z-50 — this overlay animates
+      // transform/opacity continuously, which under Fabric can otherwise
+      // paint it above later siblings that rely on implicit order.
       style={[
         glowStyle,
-        { position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height },
+        {
+          position: 'absolute',
+          zIndex: 10,
+          left: rect.x,
+          top: rect.y,
+          width: rect.width,
+          height: rect.height,
+          overflow: 'visible', // outer glow ring extends past the box
+        },
       ]}>
       {/* Stacked translucent rings = the neon glow, no blur pass. */}
       <Animated.View

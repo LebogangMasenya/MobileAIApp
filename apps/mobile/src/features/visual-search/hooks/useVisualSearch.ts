@@ -10,7 +10,18 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { runVisualSearch } from '@/services/apiClient';
+import { upsertEntry } from '@/services/vault-store';
 import type { ProductMatch } from '@/types/visual-search';
+
+/**
+ * Public copy of the demo image for the vault entry's grid thumbnail — the
+ * on-screen demo image is a bundled asset (not a movable file), so demo
+ * entries reference the hosted copy instead (specs/005 research §4 caveat:
+ * camera entries carry the hard offline guarantee, demo entries render when
+ * the image is reachable/cached).
+ */
+const DEMO_IMAGE_PUBLIC_URL =
+  'https://drive.usercontent.google.com/download?id=1vCke7S07VlvTgoVD9HZDncTwfqGY9H3r&export=view';
 
 export type VisualSearchState =
   | { phase: 'idle' }
@@ -47,6 +58,18 @@ export function useVisualSearch(): UseVisualSearchResult {
       switch (result.kind) {
         case 'ok':
           setState({ phase: 'done', matches: result.data.matches });
+          // Feature 005: record the demo run in the vault. ONE stable id —
+          // repeat demo runs replace the entry instead of spamming the grid.
+          if (result.data.matches.length > 0) {
+            void upsertEntry({
+              id: 'vlt_demo',
+              scanId: null,
+              imageUri: DEMO_IMAGE_PUBLIC_URL,
+              capturedAt: new Date().toISOString(),
+              matches: result.data.matches,
+              source: 'demo',
+            });
+          }
           return;
         case 'api':
           setState({ phase: 'failed', message: result.error.message, retryable: result.retryable });

@@ -61,7 +61,9 @@ export function ScanErrorFallback({
 
   return (
     <View
-      className="absolute inset-0 items-center justify-center px-6"
+      // z-[60]: failure overlays top the whole z-band stack (specs/005 US1) —
+      // explicit, because Fabric doesn't guarantee implicit sibling order.
+      className="absolute inset-0 z-[60] items-center justify-center px-6"
       // The scrim itself swallows taps so users can't interact with stale UI
       // beneath an unresolved failure, but the content behind stays rendered.
       pointerEvents="auto">

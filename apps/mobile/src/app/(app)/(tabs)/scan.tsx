@@ -31,6 +31,9 @@ import { useGarmentMatches } from '@/features/scan/hooks/useGarmentMatches';
 import { useRegionPreference } from '@/features/scan/hooks/useRegionPreference';
 import { useSegmentPerson } from '@/features/scan/hooks/useSegmentPerson';
 import { resolveBubblePlacements } from '@/features/scan/utils/layout';
+import { VaultRevealContainer } from '@/features/vault/components/VaultRevealContainer';
+import { VaultSheet } from '@/features/vault/components/VaultSheet';
+import { discardImage, persistImage } from '@/services/vault-store';
 import type { DetectedGarment, ScanSource } from '@/types/scan';
 
 interface ActivePhoto extends CapturedPhoto {
@@ -88,6 +91,12 @@ export default function ScanScreen() {
   const bubblePlacements = frame ? resolveBubblePlacements(garments, frame, HOTSPOT_DIAMETER) : [];
 
   const resetAll = useCallback(() => {
+    // Vault hygiene (specs/005 FR-007): a photo that was moved to permanent
+    // storage but never became a vault entry (scan never reached `ready`)
+    // is discarded so the images directory can't accumulate orphans.
+    if (photo && scan.state.phase !== 'ready' && photo.uri.includes('/vault/images/')) {
+      void discardImage(photo.uri);
+    }
     setPhoto(null);
     setSelectedPersonId(null);
     setActiveGarment(null);
@@ -96,15 +105,22 @@ export default function ScanScreen() {
     scan.reset();
     seg.reset();
     matches.clearCache();
-  }, [scan, seg, matches]);
+  }, [photo, scan, seg, matches]);
 
   const submitPhoto = useCallback(
-    (captured: CapturedPhoto, source: ScanSource) => {
+    async (captured: CapturedPhoto, source: ScanSource) => {
       // Region is guaranteed loaded here — capture controls are disabled
       // until the preference read resolves (see render below).
       if (!preference) return;
-      setPhoto({ ...captured, source });
-      scan.submit(captured, source, preference.region);
+      // MOVE-BEFORE-CONSUME (specs/005 FR-004): the photo becomes permanent
+      // BEFORE anything holds its URI, so display, upload, the Home rail,
+      // and the vault entry all share one durable path — no temp-cache URI
+      // can leak into stored data. A failed move degrades to the temp URI:
+      // scanning is never blocked by vault storage (FR-007).
+      const permanentUri = await persistImage(captured.uri);
+      const durable = permanentUri ? { ...captured, uri: permanentUri } : captured;
+      setPhoto({ ...durable, source });
+      scan.submit(durable, source, preference.region);
     },
     [preference, scan],
   );
@@ -139,18 +155,23 @@ export default function ScanScreen() {
   // ---- Capture phase -------------------------------------------------------
   if (!photo) {
     return (
-      <View className="flex-1 bg-black">
-        <CameraView
-          onCapture={(captured) => submitPhoto(captured, 'camera')}
-          disabled={!preference}
-          bottomLeftAccessory={
-            <ImportPicker
-              onPicked={(picked) => submitPhoto(picked, 'import')}
-              onError={setImportError}
-              disabled={!preference}
-            />
-          }
-        />
+      // Feature 005 (US3): the Shazam pull lives ONLY around the capture
+      // state — review-phase gestures and overlays never meet it (FR-011).
+      <VaultRevealContainer
+        enabled={!settingsVisible && importError === null}
+        renderVault={(close) => <VaultSheet onClose={close} />}>
+        <View className="flex-1 bg-black">
+          <CameraView
+            onCapture={(captured) => submitPhoto(captured, 'camera')}
+            disabled={!preference}
+            bottomLeftAccessory={
+              <ImportPicker
+                onPicked={(picked) => submitPhoto(picked, 'import')}
+                onError={setImportError}
+                disabled={!preference}
+              />
+            }
+          />
 
         <Pressable
           accessibilityRole="button"
@@ -172,14 +193,15 @@ export default function ScanScreen() {
           />
         ) : null}
 
-        <RegionSettingsSheet
-          visible={settingsVisible}
-          onClose={() => setSettingsVisible(false)}
-          preference={preference}
-          onSetRegion={setRegion}
-          onClearOverride={clearOverride}
-        />
-      </View>
+          <RegionSettingsSheet
+            visible={settingsVisible}
+            onClose={() => setSettingsVisible(false)}
+            preference={preference}
+            onSetRegion={setRegion}
+            onClearOverride={clearOverride}
+          />
+        </View>
+      </VaultRevealContainer>
     );
   }
 
@@ -187,7 +209,12 @@ export default function ScanScreen() {
   const isBusy = scan.state.phase === 'submitting' || seg.state.phase === 'segmenting';
 
   return (
-    <View className="flex-1 bg-black" onLayout={onContainerLayout}>
+    // Z-BAND CONTRACT ancestor (specs/005 US1): this container hosts the
+    // absolutely-positioned overlay stack (trace z-10, hotspots z-50, chrome
+    // z-20/30, failure overlays z-60). It MUST stay non-clipping — do not
+    // add overflow-hidden here or on any wrapper between this root and the
+    // overlays (Android clips absolute children outside bounds by default).
+    <View className="flex-1 overflow-visible bg-black" onLayout={onContainerLayout}>
       <Image
         source={{ uri: photo.uri }}
         style={{ flex: 1 }}
@@ -223,7 +250,7 @@ export default function ScanScreen() {
       ) : null}
 
       {isBusy ? (
-        <View className="absolute bottom-32 left-0 right-0 items-center" pointerEvents="none">
+        <View className="absolute bottom-32 left-0 right-0 z-20 items-center" pointerEvents="none">
           <View className="flex-row items-center gap-2 rounded-full bg-black/70 px-5 py-2.5">
             <ActivityIndicator size="small" color="#ffffff" />
             <Text className="text-sm font-medium text-white">
@@ -242,7 +269,7 @@ export default function ScanScreen() {
             setSelectedPersonId(null);
           }}
           style={{ bottom: insets.bottom + 24 }}
-          className="absolute self-center rounded-full bg-white/90 px-5 py-3 active:opacity-80">
+          className="absolute z-20 self-center rounded-full bg-white/90 px-5 py-3 active:opacity-80">
           <Text className="text-sm font-semibold text-black">Scan someone else</Text>
         </Pressable>
       ) : null}
@@ -252,7 +279,7 @@ export default function ScanScreen() {
         accessibilityLabel="Start over with a new photo"
         onPress={resetAll}
         style={{ top: insets.top + 8 }}
-        className="absolute left-5 h-11 w-11 items-center justify-center rounded-full bg-black/40 active:bg-black/60">
+        className="absolute left-5 z-30 h-11 w-11 items-center justify-center rounded-full bg-black/40 active:bg-black/60">
         <Text className="text-base text-white">✕</Text>
       </Pressable>
 

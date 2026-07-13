@@ -10,7 +10,9 @@
 
 import { useCallback, useRef, useState } from 'react';
 
+import { matchedProductToProductMatch } from '../../../features/vault/utils/matches-adapter';
 import { getGarmentMatches } from '../../../services/apiClient';
+import { mergeMatches } from '../../../services/vault-store';
 import type { GarmentMatchesResponse } from '../../../types/scan';
 
 export type GarmentMatchesState =
@@ -50,10 +52,19 @@ export function useGarmentMatches(): UseGarmentMatchesResult {
       if (token !== requestToken.current) return;
 
       switch (result.kind) {
-        case 'ok':
+        case 'ok': {
           cache.current.set(garmentId, result.data);
           setState({ phase: 'loaded', matches: result.data });
+          // Feature 005: fold this garment's matches into the scan's vault
+          // entry (normalized to the canonical six-field shape). Fire-and-
+          // forget — vault failures never disturb the matches UI (V4).
+          const normalized = [
+            ...(result.data.exactMatch ? [result.data.exactMatch] : []),
+            ...result.data.similarItems,
+          ].map(matchedProductToProductMatch);
+          void mergeMatches(scanId, normalized);
           return;
+        }
         case 'api':
           setState({ phase: 'error', message: result.error.message, retryable: result.retryable, garmentId });
           return;

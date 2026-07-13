@@ -54,7 +54,10 @@ export default function DemoScanScreen() {
   const matches = state.phase === 'done' ? state.matches : [];
 
   return (
-    <View className="flex-1 bg-black" onLayout={onContainerLayout}>
+    // Z-BAND CONTRACT ancestor (specs/005 US1): hosts the absolute overlay
+    // stack (trace z-10, chrome z-20/30). Must stay non-clipping — never add
+    // overflow-hidden between here and the overlays.
+    <View className="flex-1 overflow-visible bg-black" onLayout={onContainerLayout}>
       <Image
         source={require('@/assets/images/demo-garment.jpeg')}
         style={{ flex: 1 }}
@@ -68,7 +71,7 @@ export default function DemoScanScreen() {
       ) : null}
 
       {searching ? (
-        <View className="absolute bottom-24 left-0 right-0 items-center" pointerEvents="none">
+        <View className="absolute bottom-24 left-0 right-0 z-20 items-center" pointerEvents="none">
           <View className="flex-row items-center gap-2 rounded-full bg-black/70 px-5 py-2.5">
             <ActivityIndicator size="small" color="#ffffff" />
             <Text className="text-sm font-medium text-white">Finding where to shop this look…</Text>
@@ -82,7 +85,7 @@ export default function DemoScanScreen() {
         <Animated.View
           entering={SlideInDown.springify().mass(0.9).damping(18).stiffness(140)}
           style={{ maxHeight: '62%' }}
-          className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-surface">
+          className="absolute bottom-0 left-0 right-0 z-20 rounded-t-3xl bg-surface">
           <View className="items-center gap-1 px-6 pb-2 pt-4">
             <View className="h-1 w-10 rounded-full bg-line" />
             <Text className="pt-2 text-lg font-semibold text-ink">Shop this look</Text>
@@ -115,7 +118,7 @@ export default function DemoScanScreen() {
         <Animated.View
           entering={FadeInDown.springify().mass(0.8).damping(18).stiffness(160)}
           style={{ bottom: insets.bottom + 32 }}
-          className="absolute left-6 right-6 items-center gap-3 rounded-3xl bg-surface px-6 py-7">
+          className="absolute left-6 right-6 z-20 items-center gap-3 rounded-3xl bg-surface px-6 py-7">
           <Text className="text-3xl">🧐</Text>
           <Text className="text-center text-lg font-semibold text-ink">Nothing shoppable in this one</Text>
           <Text className="text-center text-sm leading-relaxed text-ink-muted">
@@ -148,7 +151,7 @@ export default function DemoScanScreen() {
         accessibilityLabel="Close demo scan"
         onPress={() => router.back()}
         style={{ top: insets.top + 8 }}
-        className="absolute left-5 h-11 w-11 items-center justify-center rounded-full bg-black/40 active:bg-black/60">
+        className="absolute left-5 z-30 h-11 w-11 items-center justify-center rounded-full bg-black/40 active:bg-black/60">
         <Text className="text-base text-white">✕</Text>
       </Pressable>
     </View>

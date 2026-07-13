@@ -12,6 +12,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { createScan } from '../../../services/apiClient';
 import { appendRecentScan } from '../../../services/recent-scans-store';
+import { upsertEntry } from '../../../services/vault-store';
 import type { ScanSession, ScanSource } from '../../../types/scan';
 import type { CapturedPhoto } from '../components/CameraView';
 
@@ -62,7 +63,9 @@ export function useCreateScan(): UseCreateScanResult {
             setState({ phase: 'ready', session });
             // Feature 002 integration: record the scan for Home's "Recently
             // scanned" rail. Fire-and-forget — the store is best-effort and a
-            // write failure must never disturb a successful scan.
+            // write failure must never disturb a successful scan. Since
+            // feature 005, photo.uri is already the PERMANENT vault URI
+            // (moved at capture hand-off), so rail thumbnails are durable.
             void appendRecentScan({
               scanId: session.id,
               thumbnailUri: photo.uri,
@@ -70,6 +73,17 @@ export function useCreateScan(): UseCreateScanResult {
               // Multi-person photos start at 0 (garments arrive per person);
               // useSegmentPerson bumps the count when segmentation lands.
               garmentCount: session.garments.length,
+            });
+            // Feature 005: the scan becomes a Vault entry (matches merge in
+            // later via useGarmentMatches). Deterministic id per session so
+            // repeat writes replace, never duplicate.
+            void upsertEntry({
+              id: `vlt_${session.id}`,
+              scanId: session.id,
+              imageUri: photo.uri,
+              capturedAt: session.createdAt,
+              matches: [],
+              source: 'camera',
             });
           }
           return;
