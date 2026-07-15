@@ -9,6 +9,7 @@ import { Image } from 'expo-image';
 import { Alert, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { TactileTiltCard } from '@/components/TactileTiltCard';
 import type { VaultEntry } from '@/types/vault';
 
 interface VaultEntryCardProps {
@@ -47,44 +48,51 @@ export function VaultEntryCard({ entry, index, onPress, onDelete, onShare }: Vau
         .damping(18)
         .stiffness(160)}
       className="flex-1">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Look from ${formatDay(entry.capturedAt)}, ${entry.matches.length} matches`}
-        accessibilityHint="Opens saved matches. Long-press to delete."
-        onPress={() => onPress(entry)}
-        onLongPress={confirmDelete}
-        className="overflow-hidden rounded-2xl bg-surface-card active:opacity-80">
-        <Image
-          source={{ uri: entry.imageUri }}
-          style={{ width: '100%', height: 190 }}
-          contentFit="cover"
-          recyclingKey={entry.id}
-          transition={120}
-          accessibilityLabel="Saved look photo"
-        />
-        <View className="flex-row items-center justify-between px-3 py-2.5">
-          <Text className="text-xs font-medium text-ink">{formatDay(entry.capturedAt)}</Text>
-          <Text className="text-xs text-ink-muted">
-            {entry.matches.length === 1 ? '1 match' : `${entry.matches.length} matches`}
-          </Text>
-        </View>
-      </Pressable>
+      {/* Feature 007 US2: the tilt wrapper OBSERVES touches (never competes
+          in the gesture arena — see TactileTiltCard), so the Pressable's
+          tap/long-press and the list's scroll behave byte-for-byte as
+          before (FR-008). The share affordance rides inside so it tilts
+          with the card like a printed element, not a floating sticker. */}
+      <TactileTiltCard>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Look from ${formatDay(entry.capturedAt)}, ${entry.matches.length} matches`}
+          accessibilityHint="Opens saved matches. Long-press to delete."
+          onPress={() => onPress(entry)}
+          onLongPress={confirmDelete}
+          className="overflow-hidden rounded-2xl bg-surface-card active:opacity-80">
+          <Image
+            source={{ uri: entry.imageUri }}
+            style={{ width: '100%', height: 190 }}
+            contentFit="cover"
+            recyclingKey={entry.id}
+            transition={120}
+            accessibilityLabel="Saved look photo"
+          />
+          <View className="flex-row items-center justify-between px-3 py-2.5">
+            <Text className="text-xs font-medium text-ink">{formatDay(entry.capturedAt)}</Text>
+            <Text className="text-xs text-ink-muted">
+              {entry.matches.length === 1 ? '1 match' : `${entry.matches.length} matches`}
+            </Text>
+          </View>
+        </Pressable>
 
-      {/* Share affordance — mounts/unmounts with the public toggle (springified). */}
-      {onShare ? (
-        <Animated.View
-          entering={FadeInDown.springify().mass(0.7).damping(16).stiffness(200)}
-          className="absolute right-2 top-2 z-10">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Share this look"
-            hitSlop={8}
-            onPress={() => onShare(entry)}
-            className="h-9 w-9 items-center justify-center rounded-full bg-black/45 active:bg-black/65">
-            <Text className="text-sm text-white">⤴</Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
+        {/* Share affordance — mounts/unmounts with the public toggle (springified). */}
+        {onShare ? (
+          <Animated.View
+            entering={FadeInDown.springify().mass(0.7).damping(16).stiffness(200)}
+            className="absolute right-2 top-2 z-10">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share this look"
+              hitSlop={8}
+              onPress={() => onShare(entry)}
+              className="h-9 w-9 items-center justify-center rounded-full bg-black/45 active:bg-black/65">
+              <Text className="text-sm text-white">⤴</Text>
+            </Pressable>
+          </Animated.View>
+        ) : null}
+      </TactileTiltCard>
     </Animated.View>
   );
 }

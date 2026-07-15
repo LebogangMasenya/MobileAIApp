@@ -96,7 +96,10 @@ export function VaultRevealContainer({ enabled, children, renderVault }: VaultRe
   }));
 
   const handleHintStyle = useAnimatedStyle(() => ({
-    opacity: 1 - progress.value * 2, // hint fades early — the vault replaces it
+    // Hint fades early — the vault replaces it. Clamped: past progress 0.5
+    // the raw expression goes NEGATIVE, and negative opacity is undefined
+    // behavior some platforms render as fully opaque (the exact wrong look).
+    opacity: Math.max(0, 1 - progress.value * 2),
   }));
 
   return (

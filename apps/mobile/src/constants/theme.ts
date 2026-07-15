@@ -63,3 +63,21 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/**
+ * Style Rings palette (specs/007 US5). SVG strokes take raw color strings —
+ * they can't read NativeWind classes — so the ring's colors live HERE, the
+ * app's one JS-side color constants module, mirroring the semantic palette
+ * in tailwind.config.js (primary plum family / surface-dim track). Change
+ * the tailwind tokens? Change these with them — same one-file-edit rule.
+ */
+export const RingPalette = {
+  /** Segment 1 "log" — primary plum (tailwind `primary`). */
+  log: '#6C4AB0',
+  /** Segment 2 "harmony" — lighter plum, between primary and its muted kin. */
+  harmony: '#8E6FD8',
+  /** Segment 3 "coordinate" — the palette's soft lavender accent. */
+  coordinate: '#B08FE8',
+  /** Unearned track — tailwind `surface-dim`. */
+  track: '#EDE6F7',
+} as const;

@@ -50,6 +50,11 @@ version coupling. This is the part that saves the next person time.
 
 | Date | Lesson | Area |
 |------|--------|------|
-| _(none yet)_ | | |
+| 2026-07-09 | [Expo Router typed routes go stale](2026-07-09-expo-router-typed-routes-stale.md) | build-tooling |
+| 2026-07-09 | [Native tabs need a substack for fullscreen routes](2026-07-09-native-tabs-need-a-substack-for-fullscreen-routes.md) | platform-quirk |
+| 2026-07-12 | [Spring perimeter trace without SVG](2026-07-12-spring-perimeter-trace-without-svg.md) | animation |
+| 2026-07-13 | [expo-file-system new API](2026-07-13-expo-file-system-new-api.md) | api |
+| 2026-07-13 | [Gesture handler root view](2026-07-13-gesture-handler-root-view.md) | native-modules |
+| 2026-07-15 | [Observation-only gestures & SVG dash arcs](2026-07-15-observation-only-gesture-and-svg-dash-arcs.md) | animation |
 
 Keep the index table above updated as lessons are added.

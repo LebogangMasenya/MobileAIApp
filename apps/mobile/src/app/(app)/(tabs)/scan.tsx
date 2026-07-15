@@ -11,7 +11,7 @@
 
 import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -19,6 +19,7 @@ import {
   InteractionHotspot,
 } from '@/features/scan-overlay/components/InteractionHotspot';
 import { NeonTracingOverlay } from '@/features/scan-overlay/components/NeonTracingOverlay';
+import { ScanPulseWave } from '@/features/scan-overlay/components/ScanPulseWave';
 import { useCoordinateTransform } from '@/features/scan-overlay/hooks/useCoordinateTransform';
 import { CameraView, type CapturedPhoto } from '@/features/scan/components/CameraView';
 import { GarmentDetailModal } from '@/features/scan/components/GarmentDetailModal';
@@ -249,15 +250,16 @@ export default function ScanScreen() {
         <PersonSelector people={session.people} frame={frame} onSelect={handleSelectPerson} />
       ) : null}
 
+      {/* Living scan (feature 007 US1): the pulse wave owns the whole busy
+          window — mounting/unmounting on `isBusy` is the FR-006 hand-off:
+          the component's exit spring settles rings, glow, pill, AND haptic
+          ticks in one beat (its reaction unmounts with it — no zombie wave,
+          SC-002). Sits in the z-10 trace band alongside NeonTracingOverlay:
+          wave = "searching" heartbeat, trace = region focus. */}
       {isBusy ? (
-        <View className="absolute bottom-32 left-0 right-0 z-20 items-center" pointerEvents="none">
-          <View className="flex-row items-center gap-2 rounded-full bg-black/70 px-5 py-2.5">
-            <ActivityIndicator size="small" color="#ffffff" />
-            <Text className="text-sm font-medium text-white">
-              {scan.state.phase === 'submitting' ? 'Identifying garments…' : 'Scanning their outfit…'}
-            </Text>
-          </View>
-        </View>
+        <ScanPulseWave
+          label={scan.state.phase === 'submitting' ? 'Identifying garments…' : 'Scanning their outfit…'}
+        />
       ) : null}
 
       {/* FR-017: revisit other people after finishing one. */}

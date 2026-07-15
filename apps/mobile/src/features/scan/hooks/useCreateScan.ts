@@ -11,6 +11,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { createScan } from '../../../services/apiClient';
+import { markSegment } from '../../../services/daily-cycle-store';
 import { appendRecentScan } from '../../../services/recent-scans-store';
 import { upsertEntry } from '../../../services/vault-store';
 import type { ScanSession, ScanSource } from '../../../types/scan';
@@ -94,6 +95,11 @@ export function useCreateScan(): UseCreateScanResult {
                 matches: [],
               })),
             });
+            // Feature 007 US5 'log' fulfillment (contracts/daily-cycle §2): a
+            // look reaching the vault today closes the ring's first segment.
+            // Fire-and-forget beside the upsert — the ring is a bystander to
+            // the scan flow and must never block or break it (Constitution VII).
+            void markSegment('log');
           }
           return;
         }

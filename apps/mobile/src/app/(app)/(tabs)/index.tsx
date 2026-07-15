@@ -13,21 +13,36 @@
 
 import { useFocusEffect, useRouter } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { BottomTabInset } from '@/constants/theme';
+import { BottomTabInset, RingPalette } from '@/constants/theme';
 import { EmptyScansState } from '@/features/home/components/EmptyScansState';
 import { DemoScanCard } from '@/features/visual-search/components/DemoScanCard';
 import { FeatureHighlights } from '@/features/home/components/FeatureHighlights';
 import { GreetingHeader } from '@/features/home/components/GreetingHeader';
 import { RecentScansRail } from '@/features/home/components/RecentScansRail';
 import { useRecentScans } from '@/features/home/hooks/useRecentScans';
+import { CoordinateSuggestionSheet } from '@/features/style-rings/components/CoordinateSuggestionSheet';
+import { DailyCycleRing } from '@/features/style-rings/components/DailyCycleRing';
+import { RingCelebration } from '@/features/style-rings/components/RingCelebration';
+import { useDailyCycle } from '@/features/style-rings/hooks/useDailyCycle';
+import { SEGMENT_IDS, type SegmentId } from '@/services/daily-cycle-store';
+
+/** Ring legend copy + swatch per segment (colors mirror DailyCycleRing). */
+const SEGMENT_META: Record<SegmentId, { label: string; color: string }> = {
+  log: { label: 'Log a look', color: RingPalette.log },
+  harmony: { label: 'Explore a look', color: RingPalette.harmony },
+  coordinate: { label: 'Style a coordinate', color: RingPalette.coordinate },
+};
 
 export default function HomeScreen() {
   const router = useRouter();
   const { scans, isLoading, error, retry } = useRecentScans();
+  // Feature 007 US5: the ring's state engine — Home only wires it to visuals.
+  const cycle = useDailyCycle();
+  const [suggestionVisible, setSuggestionVisible] = useState(false);
 
   // The header is dark in both themes; flip the status-bar text to light only
   // while Home is focused (tabs keep screens mounted, so a mount-scoped
@@ -43,6 +58,44 @@ export default function HomeScreen() {
     <View className="flex-1 bg-surface">
       <GreetingHeader />
       <ScrollView contentContainerStyle={{ paddingTop: 24, paddingBottom: BottomTabInset + 32, gap: 24 }}>
+        {/* Style Rings (feature 007 US5) — the daily open loop, first thing
+            the eye lands on. Renders only from today's REAL record (SC-007);
+            while the record loads we render nothing rather than a fake ring. */}
+        {cycle.record ? (
+          <Animated.View
+            entering={FadeInDown.springify().mass(0.8).damping(18).stiffness(160)}
+            className="mx-6 flex-row items-center gap-5 rounded-3xl bg-surface-card px-5 py-5">
+            <DailyCycleRing record={cycle.record} />
+            <View className="flex-1 gap-2.5">
+              <Text className="font-serif text-lg text-ink">Today&apos;s cycle</Text>
+              <View className="gap-1.5">
+                {SEGMENT_IDS.map((id) => {
+                  const done = Boolean(cycle.record?.segments[id]);
+                  return (
+                    <View key={id} className="flex-row items-center gap-2">
+                      <View
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: SEGMENT_META[id].color, opacity: done ? 1 : 0.35 }}
+                      />
+                      <Text className={done ? 'text-xs font-medium text-ink' : 'text-xs text-ink-muted'}>
+                        {SEGMENT_META[id].label}
+                        {done ? '  ✓' : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Style a coordinate from your vault"
+                onPress={() => setSuggestionVisible(true)}
+                className="mt-0.5 min-h-9 items-center justify-center self-start rounded-full bg-primary px-4 active:bg-primary-pressed">
+                <Text className="text-sm font-semibold text-on-primary">Style me</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        ) : null}
+
         {error ? (
           <Animated.View
             entering={FadeInDown.springify().mass(0.8).damping(18).stiffness(160)}
@@ -80,6 +133,25 @@ export default function HomeScreen() {
             state so the demo is always one tap from launch (FR-011). */}
         <DemoScanCard onPress={() => router.push('/demo-scan')} />
       </ScrollView>
+
+      {/* Segment 3's stand-in generator (contracts/daily-cycle §4). Confirm
+          marks the segment; dismiss marks nothing — honest completion. */}
+      <CoordinateSuggestionSheet
+        visible={suggestionVisible}
+        onConfirm={() => {
+          cycle.complete('coordinate');
+          setSuggestionVisible(false);
+        }}
+        onDismiss={() => setSuggestionVisible(false)}
+        onScanInstead={() => {
+          setSuggestionVisible(false);
+          router.push('/scan');
+        }}
+      />
+
+      {/* Full-ring moment — owed whenever complete ∧ unacknowledged, so an
+          interrupted celebration simply replays on the next visit. */}
+      {cycle.shouldCelebrate ? <RingCelebration onDone={cycle.onCelebrated} /> : null}
     </View>
   );
 }

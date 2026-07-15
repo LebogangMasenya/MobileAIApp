@@ -23,11 +23,12 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+// Reanimated 4 deprecates runOnJS; worklet→JS calls go through worklets core.
+import { scheduleOnRN } from 'react-native-worklets';
 
 import type { DetectedGarment, MatchedProduct, SimilarItem } from '../../../types/scan';
 import type { GarmentMatchesState } from '../hooks/useGarmentMatches';
@@ -238,7 +239,7 @@ export function GarmentDetailModal({
     // would hard-cut the exit and violate the "no sudden state jumps" bar.
     // Reanimated shared values are mutable by design; event-handler writes are the documented API
     translateY.value = withSpring(screenHeight, CLOSE_SPRING, (finished) => {
-      if (finished) runOnJS(finishClose)();
+      if (finished) scheduleOnRN(finishClose);
     });
   };
 
@@ -261,7 +262,7 @@ export function GarmentDetailModal({
       if (event.translationY > DISMISS_DISTANCE || event.velocityY > DISMISS_VELOCITY) {
         // see onUpdate note
         translateY.value = withSpring(screenHeight, CLOSE_SPRING, (finished) => {
-          if (finished) runOnJS(finishClose)();
+          if (finished) scheduleOnRN(finishClose);
         });
       } else {
         translateY.value = withSpring(0, OPEN_SPRING);
