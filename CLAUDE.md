@@ -49,17 +49,19 @@ This file acts as a permanent directive for Claude Code, Fable 5, and all subage
 - **Local Retrospective:** Maintain a `/lessons` folder at the root. Document critical debugging breakthroughs (e.g., fixing an unexpected Expo prebuild error or Cocoapods conflict) to preserve context for future development cycles.
 
 <!-- SPECKIT START -->
-Active plan: `specs/007-ui-ux-overhaul/plan.md` (UI/UX overhaul, scope
-US1–US5: living scan wave + first haptics infra (`services/tactile.ts`
-seam) + reduce-motion compliance; observation-only 3D card tilt + sheen;
-honest momentum vault welcome (derived SetupJourney); Style-Profile smart
-filter rail; Style Rings daily cycle (SVG ring, device-store record). New
-native deps expo-haptics/react-native-svg/expo-linear-gradient — ONE
-dev-client rebuild. Reanimated is v4 (scheduleOnRN, not runOnJS). Pack
-ritual, paywall, AI chat deferred with binding rules in spec.md Out of
-Scope). See research.md (R1–R11), data-model.md, contracts/ in the same
-directory. Prior features: 006 (vault sharing groundwork — implemented),
-005 (Wardrobe Vault + hotspot fix — implemented, device verification
-pending), 004, 003, 002, 001 — several manual quickstart passes
-outstanding (005's quickstart covers most).
+Active plan: `specs/008-smart-visual-search/plan.md` (Subject Lift visual
+search: on-device background isolation via NEW seam
+`services/subject-lift.ts` over @six33/react-native-bg-removal — new
+native dep, ONE dev-client rebuild shared with 007's still-pending rebuild;
+honest 4-stage pipeline (isolate→prepare→match→assemble); manual crop
+marquee fallback floor; two-column pure-JS masonry cascade ≤640ms; savings
+labels from currency-partitioned highest-comparable anchor (CL-002);
+harmony ring over 007 style profile; jackpot only on provider exact flag
+(CL-003); standalone route evolving demo-scan (CL-001). API: multipart
+upload + ephemeral TTL image hosting so the URL-only provider can fetch;
+ProductMatch gains optional exact/price_value/currency (both type copies).
+See research.md (R1–R12), data-model.md, contracts/ in that directory.
+Prior: 007 implemented (26/33 tasks; rebuild T002 + 6 device passes
+outstanding), 006/005 implemented (device verification pending), 004–001
+done. Reanimated is v4 (scheduleOnRN, not runOnJS).
 <!-- SPECKIT END -->

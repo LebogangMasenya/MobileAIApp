@@ -129,9 +129,10 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Feature 003: visual-search demo entry — rendered in every content
-            state so the demo is always one tap from launch (FR-011). */}
-        <DemoScanCard onPress={() => router.push('/demo-scan')} />
+        {/* Feature 008: the Subject Lift visual-search entry (evolved from
+            003's demo card) — rendered in every content state so the surface
+            is always one tap from launch. */}
+        <DemoScanCard onPress={() => router.push('/visual-search')} />
       </ScrollView>
 
       {/* Segment 3's stand-in generator (contracts/daily-cycle §4). Confirm

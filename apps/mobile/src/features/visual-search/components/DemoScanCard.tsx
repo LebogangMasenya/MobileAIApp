@@ -1,7 +1,10 @@
 /**
- * DemoScanCard — the Home entry point into the visual-search demo (FR-011).
- * Placement-agnostic (parent decides where it renders and what onPress does)
- * so the demo entry can move or be retired without touching this file.
+ * DemoScanCard — the Home entry point into Visual Search (specs/008 FR-017;
+ * evolved from feature 003's demo entry, same component seam so Home's
+ * wiring never changed). Placement-agnostic: the parent decides where it
+ * renders and what onPress does, so the entry can move or be retired
+ * without touching this file. The 003 demo behavior itself lives on inside
+ * the visual-search route's "Try the sample" affordance.
  */
 
 import { Image } from 'expo-image';
@@ -19,19 +22,19 @@ export function DemoScanCard({ onPress }: DemoScanCardProps) {
       className="px-6">
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Try a demo scan"
+        accessibilityLabel="Find any garment with visual search"
         onPress={onPress}
         className="flex-row items-center gap-4 rounded-2xl bg-header p-4 active:opacity-85">
         <Image
           source={require('@/assets/images/demo-garment.jpeg')}
           style={{ width: 56, height: 70, borderRadius: 12 }}
           contentFit="cover"
-          accessibilityLabel="Demo outfit"
+          accessibilityLabel="Garment photo"
         />
         <View className="flex-1 gap-0.5">
-          <Text className="text-base font-semibold text-on-header">Try a demo scan</Text>
+          <Text className="text-base font-semibold text-on-header">Find any garment</Text>
           <Text className="text-sm leading-snug text-on-header-muted">
-            Watch Satori find this outfit in real stores
+            Snap a piece — Satori lifts it out and finds it in stores
           </Text>
         </View>
         <Text className="text-lg text-on-header-muted">›</Text>

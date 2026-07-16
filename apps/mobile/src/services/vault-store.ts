@@ -65,7 +65,9 @@ function isVaultEntry(candidate: unknown): candidate is VaultEntry {
     typeof record.imageUri === 'string' &&
     typeof record.capturedAt === 'string' &&
     Array.isArray(record.matches) &&
-    (record.source === 'camera' || record.source === 'demo') &&
+    // Every source value must be listed here or its entries silently vanish
+    // on read — this validator IS the vault's gatekeeper (008 T005 lesson).
+    (record.source === 'camera' || record.source === 'demo' || record.source === 'lift') &&
     (record.imageSize === null ||
       (typeof size === 'object' &&
         size !== null &&

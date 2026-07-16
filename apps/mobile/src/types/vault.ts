@@ -41,7 +41,12 @@ export interface VaultEntry {
    * modal read this; per-garment lists below are additive (feature 006).
    */
   matches: ProductMatch[];
-  source: 'camera' | 'demo';
+  /**
+   * Which flow saved the look. 'lift' (feature 008) is additive: a completed
+   * Subject Lift search writes one entry with the SOURCE photo (durable) and
+   * empty garments — the demo-entry precedent, no region data on this path.
+   */
+  source: 'camera' | 'demo' | 'lift';
   /**
    * Photo pixel dimensions, known at capture — required for region→pixel
    * crop math. Null on v1-migrated and demo entries (blocks cropping only;

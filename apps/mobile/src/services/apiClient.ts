@@ -168,6 +168,29 @@ export function runVisualSearch(params: VisualSearchParams = {}): Promise<ApiRes
 }
 
 /**
+ * POST /v1/visual-search, multipart Mode B (feature 008, contracts/
+ * search-api.md §1) — uploads the device-isolated garment PNG; the server
+ * parks it in an ephemeral store, hands its self-origin URL to the provider,
+ * and answers with the same `{ matches }` envelope as the JSON mode. Same
+ * RN FormData file-descriptor pattern as `createScan`.
+ */
+export function runLiftSearch(photoUri: string, country?: string): Promise<ApiResult<VisualSearchResponse>> {
+  const form = new FormData();
+  form.append('photo', {
+    uri: photoUri,
+    name: 'garment.png',
+    type: 'image/png',
+    // RN's FormData file descriptor isn't in the DOM lib types; this narrow
+    // cast is the documented RN pattern, not an `any` escape.
+  } as unknown as Blob);
+  if (country) form.append('country', country);
+  return request<VisualSearchResponse>('/v1/visual-search', {
+    method: 'POST',
+    body: form,
+  });
+}
+
+/**
  * GET /v1/scans/{scanId}/garments/{garmentId}/matches — lazy per-garment
  * store/similar-item lookup, fetched on bubble tap (SC-003 ≤2s budget).
  */

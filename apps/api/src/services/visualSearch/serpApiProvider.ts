@@ -30,8 +30,11 @@ export type VisualSearchProviderResult =
 
 /**
  * The ONLY provider fields we read (verified against SerpApi's live docs,
- * research §1). Parsed from `unknown` — the wire is never trusted to match
- * types.
+ * 003 research §1 + 008 R3/R4 re-verified 2026-07-16: exactness is a
+ * per-entry `exact_matches: true` boolean on visual_matches — there is NO
+ * separate exact section; numeric price rides `price.extracted_value` +
+ * `price.currency`). Parsed from `unknown` — the wire is never trusted to
+ * match types.
  */
 interface SerpApiVisualMatch {
   position?: unknown;
@@ -40,7 +43,10 @@ interface SerpApiVisualMatch {
   thumbnail?: unknown;
   image?: unknown;
   source?: unknown;
-  price?: { value?: unknown };
+  price?: { value?: unknown; extracted_value?: unknown; currency?: unknown };
+  exact_matches?: unknown;
+  thumbnail_width?: unknown;
+  thumbnail_height?: unknown;
 }
 
 function isHttpUrl(candidate: unknown): candidate is string {
@@ -62,6 +68,11 @@ function nonEmptyString(candidate: unknown): candidate is string {
  * product link is unrenderable and unshoppable — half-empty cards would make
  * the demo look broken, so such entries are dropped rather than padded.
  */
+/** A finite positive number — the only shape safe for arithmetic/layout. */
+function finitePositive(candidate: unknown): candidate is number {
+  return typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0;
+}
+
 function toProductMatch(raw: SerpApiVisualMatch, index: number): ProductMatch | null {
   if (!nonEmptyString(raw.title) || !isHttpUrl(raw.link)) return null;
 
@@ -70,7 +81,7 @@ function toProductMatch(raw: SerpApiVisualMatch, index: number): ProductMatch | 
   const thumbnail = isHttpUrl(raw.thumbnail) ? raw.thumbnail : isHttpUrl(raw.image) ? raw.image : null;
   if (thumbnail === null) return null;
 
-  return {
+  const match: ProductMatch = {
     // Provider `position` when present, list index otherwise — stable within
     // this response, which is all the contract promises.
     id: String(typeof raw.position === 'number' ? raw.position : index + 1),
@@ -81,6 +92,25 @@ function toProductMatch(raw: SerpApiVisualMatch, index: number): ProductMatch | 
     price: nonEmptyString(raw.price?.value) ? raw.price.value : null,
     store_name: nonEmptyString(raw.source) ? raw.source.trim() : new URL(raw.link).hostname,
   };
+
+  // 008 additive fields — set only when well-typed, absent otherwise, so a
+  // malformed provider value degrades to "no claim" rather than a bad claim
+  // (FR-013). Numeric price needs BOTH value and currency: an amount without
+  // its currency cannot be compared to anything (R4 currency partitioning).
+  if (finitePositive(raw.price?.extracted_value) && nonEmptyString(raw.price?.currency)) {
+    match.price_value = raw.price.extracted_value;
+    match.currency = raw.price.currency;
+  }
+  // CL-003: the ONLY place `exact` may ever be set — the provider's own flag.
+  if (raw.exact_matches === true) {
+    match.exact = true;
+  }
+  if (finitePositive(raw.thumbnail_width) && finitePositive(raw.thumbnail_height)) {
+    match.thumbnail_width = raw.thumbnail_width;
+    match.thumbnail_height = raw.thumbnail_height;
+  }
+
+  return match;
 }
 
 function normalize(body: unknown): ProductMatch[] {
@@ -114,9 +144,11 @@ export async function searchByImage(params: VisualSearchParams): Promise<VisualS
 
   const query = new URLSearchParams({
     engine: 'google_lens',
-    // `type` is REQUIRED by the provider; visual_matches is the consistently
-    // populated section for street-style photos (research §1).
-    type: 'visual_matches',
+    // `type=all` (008 R3, verified live 2026-07-16): the all-sections search
+    // is the one whose visual_matches entries carry the per-entry
+    // `exact_matches: true` flag — the ONLY signal allowed to drive the US5
+    // jackpot (CL-003). Still one provider call per search (quota rule).
+    type: 'all',
     url: params.imageUrl,
     api_key: apiKey,
   });
