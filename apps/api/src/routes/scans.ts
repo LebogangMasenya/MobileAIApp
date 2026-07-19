@@ -17,7 +17,7 @@ import type {
   ScanSession,
   ScanSource,
 } from '../types/scan';
-import { findMatches } from '../services/matching/matchService';
+import { findMatches, ScanPhotoExpiredError } from '../services/matching/matchService';
 import { sessionStore } from '../services/storage/sessionStore';
 import {
   detectPeople,
@@ -246,6 +246,7 @@ export async function handleSegmentPerson(
  * cheapest possible way to notice drift before users do.
  */
 export async function handleGetMatches(
+  request: Request,
   scanId: string,
   garmentId: string,
 ): Promise<Response> {
@@ -257,13 +258,24 @@ export async function handleGetMatches(
       return errorResponse('GARMENT_NOT_FOUND', 'That garment could not be found. Please rescan the photo.', 404);
     }
 
-    const { exactMatch, similarItems } = await findMatches(garment, session.regionUsed);
+    // Visual matching needs the original photo (to crop this garment) and
+    // our public origin (to host the crop for the URL-only provider). Bytes
+    // may be gone — findMatches turns that into ScanPhotoExpiredError below.
+    const { exactMatch, similarItems } = await findMatches(garment, session.regionUsed, {
+      photoBytes: photoCache.get(scanId),
+      origin: new URL(request.url).origin,
+    });
 
     garment.matchStatus = exactMatch || similarItems.length > 0 ? 'matched' : 'no_match';
     await sessionStore.put(session);
 
     return json<GarmentMatchesResponse>({ garmentId, exactMatch, similarItems }, 200);
   } catch (error) {
+    if (error instanceof ScanPhotoExpiredError) {
+      // Session-lifetime fact, not upstream trouble: the same honest answer
+      // the person-selection route gives when its photo bytes are gone.
+      return errorResponse('GARMENT_NOT_FOUND', 'This scan has expired. Please rescan the photo.', 404);
+    }
     return mapUnexpected(error);
   } finally {
     const elapsedMs = Math.round(performance.now() - startedAt);

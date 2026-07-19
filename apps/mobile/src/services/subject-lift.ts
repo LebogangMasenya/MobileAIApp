@@ -24,10 +24,29 @@
 
 import { Image, Platform } from 'react-native';
 
-import {
-  isNativeBackgroundRemovalSupported,
-  removeBackground,
-} from '@six33/react-native-bg-removal';
+/**
+ * Lazy library binding. A static `import` would run the library's
+ * `TurboModuleRegistry.getEnforcing('BackgroundRemover')` the moment ANY
+ * route importing this seam loads — and on a dev client built without the
+ * pod (the 007/008 rebuild-pending state) that throws during module
+ * evaluation, crashing route navigation before any try/catch here can run.
+ * Deferring to a guarded require() maps "binary lacks the module" to the
+ * `unsupported` outcome instead — an isolation failure is a ROUTE.
+ */
+type BgRemovalModule = typeof import('@six33/react-native-bg-removal');
+
+let bgRemovalModule: BgRemovalModule | null | undefined;
+
+function loadBgRemoval(): BgRemovalModule | null {
+  if (bgRemovalModule === undefined) {
+    try {
+      bgRemovalModule = require('@six33/react-native-bg-removal') as BgRemovalModule;
+    } catch {
+      bgRemovalModule = null;
+    }
+  }
+  return bgRemovalModule;
+}
 
 /** Pixel dimensions — kept local so the seam has zero feature imports. */
 export interface SubjectSize {
@@ -82,11 +101,42 @@ export function isDegenerateLift(subject: SubjectSize, source: SubjectSize): boo
  */
 let availabilityProbe: Promise<boolean> | null = null;
 
+/**
+ * Capability probe — deliberately NOT the library's
+ * `isNativeBackgroundRemovalSupported()`. That helper calls the raw native
+ * method with NO `options` argument; on the New Architecture the required
+ * options struct then marshals from NSNull, and the ObjC bridge's
+ * `options.trim()` read throws an uncaught NSException inside
+ * `performMethodInvocation` — a hard native crash, not a catchable JS error
+ * (observed as a device crash the moment the visual-search screen mounts).
+ *
+ * The safe route is the library's `removeBackground` JS wrapper, whose
+ * default `{ trim: true }` always supplies the struct. Same semantics as the
+ * upstream probe: a deliberately unloadable probe URI never reaches Vision —
+ * iOS < 17 rejects with REQUIRES_API_FALLBACK (→ unsupported) before
+ * touching the URI; any load/URL error means the native path exists (→
+ * supported). Simulators "succeed" by echoing the input, which also lands in
+ * the supported branch — liftSubject's no-op check catches that later.
+ */
+async function probeSupport(): Promise<boolean> {
+  const lib = loadBgRemoval();
+  if (!lib) return false; // binary lacks the module → manual-crop floor
+  try {
+    await lib.removeBackground('probe://capability-check', { trim: true });
+    return true;
+  } catch (error) {
+    if (error instanceof Error && error.message === 'REQUIRES_API_FALLBACK') {
+      return false;
+    }
+    return true;
+  }
+}
+
 export function isAvailable(): Promise<boolean> {
   // Web has no native module at all — decided before touching the library.
   if (Platform.OS === 'web') return Promise.resolve(false);
   if (!availabilityProbe) {
-    availabilityProbe = isNativeBackgroundRemovalSupported().catch(() => false);
+    availabilityProbe = probeSupport().catch(() => false);
   }
   return availabilityProbe;
 }
@@ -103,12 +153,14 @@ export async function liftSubject(
 ): Promise<LiftOutcome> {
   try {
     if (!(await isAvailable())) return { kind: 'unsupported' };
+    const lib = loadBgRemoval();
+    if (!lib) return { kind: 'unsupported' };
 
     // trim: true (the library default, stated explicitly because FR-004
     // depends on it): dead transparent margins are removed natively, so the
     // pipeline's payload is already tightened to the subject bounds and the
     // user never operates a crop tool on the happy path.
-    const liftedUri = await removeBackground(sourceUri, { trim: true });
+    const liftedUri = await lib.removeBackground(sourceUri, { trim: true });
 
     // Simulator no-op detection (R1 finding): the library "succeeds" with
     // the unmodified input on iOS simulators. Treating that as success would

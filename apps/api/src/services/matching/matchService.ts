@@ -10,9 +10,34 @@
  * logic to a single length check.
  */
 
+import sharp from 'sharp';
+
 import type { DetectedGarment, MatchedProduct, SimilarItem, Store } from '../../types/scan';
 import { UpstreamUnavailableError } from '../vision/dispatch';
+import { putUpload } from '../visualSearch/uploadStore';
+import { searchByImage } from '../visualSearch/serpApiProvider';
 import { mockSearch } from './mockProvider';
+
+/**
+ * The scan photo's bytes are gone (isolate recycled / cache evicted), so the
+ * garment can no longer be cropped for visual search. Routes map this to the
+ * same honest "rescan" answer the person-selection route gives — it is a
+ * session-lifetime fact, NOT upstream trouble, so it must not look retryable.
+ */
+export class ScanPhotoExpiredError extends Error {
+  constructor() {
+    super('The scan photo is no longer available for matching.');
+    this.name = 'ScanPhotoExpiredError';
+  }
+}
+
+/** What the visual-search path needs beyond the garment itself. */
+export interface MatchContext {
+  /** Original scan photo bytes from routes/scans.ts's photoCache, if alive. */
+  photoBytes: ArrayBuffer | undefined;
+  /** This deployment's public origin — the self-origin image-hosting trick. */
+  origin: string;
+}
 
 export interface MatchResult {
   exactMatch: MatchedProduct | null;
@@ -41,41 +66,120 @@ interface ProviderResponse {
  */
 const MAX_SIMILAR_ITEMS = 12;
 
+/**
+ * Padding around the garment's bounding box when cropping (fraction of each
+ * box dimension per side). Detection boxes hug the garment tightly; a sliver
+ * of surrounding context measurably helps Lens recognize the item, while too
+ * much re-admits the busy background the crop exists to remove.
+ */
+const CROP_PADDING_RATIO = 0.1;
+
+/**
+ * Crop the garment's region out of the scan photo → PNG bytes for hosting.
+ * BoundingRegion is normalized [0,1]; sharp wants integer pixels, so the
+ * region is scaled by the decoded dimensions and clamped to the frame
+ * (padding may push past an edge — clamp, don't fail).
+ */
+async function cropGarment(photoBytes: ArrayBuffer, garment: DetectedGarment): Promise<Uint8Array> {
+  const input = Buffer.from(photoBytes);
+  // .rotate() with no args = apply EXIF orientation FIRST: phone photos are
+  // often stored rotated with an orientation tag, and the vision provider
+  // reported regions against the *oriented* pixels — cropping the raw sensor
+  // orientation would cut the wrong region. sharp's pipeline applies this
+  // rotation before the extract below regardless of source orientation.
+  const image = sharp(input).rotate();
+
+  // metadata() reports PRE-rotation dimensions; EXIF orientations 5–8 are
+  // the 90°-rotated family, where the oriented frame has them swapped.
+  const meta = await sharp(input).metadata();
+  if (!meta.width || !meta.height) {
+    throw new UpstreamUnavailableError('Scan photo could not be decoded for matching');
+  }
+  const quarterTurned = (meta.orientation ?? 1) >= 5;
+  const width = quarterTurned ? meta.height : meta.width;
+  const height = quarterTurned ? meta.width : meta.height;
+
+  const { boundingRegion: box } = garment;
+  const padX = box.width * CROP_PADDING_RATIO;
+  const padY = box.height * CROP_PADDING_RATIO;
+  const left = Math.max(0, Math.floor((box.x - padX) * width));
+  const top = Math.max(0, Math.floor((box.y - padY) * height));
+  const right = Math.min(width, Math.ceil((box.x + box.width + padX) * width));
+  const bottom = Math.min(height, Math.ceil((box.y + box.height + padY) * height));
+  if (right - left < 1 || bottom - top < 1) {
+    throw new UpstreamUnavailableError('Garment region is degenerate — nothing to crop');
+  }
+
+  const png = await image
+    .extract({ left, top, width: right - left, height: bottom - top })
+    .png()
+    .toBuffer();
+  return new Uint8Array(png);
+}
+
 async function queryProvider(
   garment: DetectedGarment,
   region: string,
+  context: MatchContext,
 ): Promise<ProviderResponse> {
   // Same selection rule as the vision dispatch: explicit mock wins, mock is
   // the automatic dev fallback when unconfigured, production stays loud.
   const useMock =
     process.env.PRODUCT_SEARCH_PROVIDER === 'mock' ||
-    (!process.env.PRODUCT_SEARCH_API_URL && process.env.NODE_ENV !== 'production');
+    (!process.env.SERPAPI_API_KEY && process.env.NODE_ENV !== 'production');
   if (useMock) {
     return mockSearch(garment, region);
   }
-  const url = process.env.PRODUCT_SEARCH_API_URL;
-  if (!url) {
-    throw new UpstreamUnavailableError('PRODUCT_SEARCH_API_URL is not configured');
+
+  if (!context.photoBytes) {
+    throw new ScanPhotoExpiredError();
   }
-  let response: Response;
+
+  // The 008 visual-search pipeline, reapplied to one garment: crop → host
+  // ephemerally on our own origin → Google Lens by URL. A decode/crop
+  // failure is indistinguishable from upstream trouble as far as the user's
+  // options go (retry / rescan), so it rides the same retryable error.
+  let crop: Uint8Array;
   try {
-    response = await fetch(`${url}/search`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(process.env.PRODUCT_SEARCH_API_KEY
-          ? { authorization: `Bearer ${process.env.PRODUCT_SEARCH_API_KEY}` }
-          : {}),
+    crop = await cropGarment(context.photoBytes, garment);
+  } catch (error) {
+    if (error instanceof UpstreamUnavailableError) throw error;
+    throw new UpstreamUnavailableError(`Garment crop failed: ${String(error)}`);
+  }
+
+  const uploadId = putUpload(crop);
+  const imageUrl = `${context.origin}/v1/visual-search/images/${uploadId}`;
+
+  const result = await searchByImage({ imageUrl, country: region });
+  if (result.kind !== 'ok') {
+    throw new UpstreamUnavailableError(`Product search ${result.kind}`);
+  }
+
+  // Adapt Lens matches onto the listing shape the selection logic below
+  // consumes. Rank encodes similarity (Lens orders by relevance, exposes no
+  // score), and the store's region is the one we scoped the search to —
+  // which keeps the defense-in-depth region filter meaningful without
+  // fabricating global availability claims.
+  return {
+    listings: result.matches.map((match, index) => ({
+      id: match.id,
+      title: match.title,
+      imageUrl: match.thumbnail,
+      price:
+        typeof match.price_value === 'number' && typeof match.currency === 'string'
+          ? { amount: match.price_value, currency: match.currency }
+          : null,
+      ctaUrl: match.source_url,
+      isExactMatch: match.exact === true,
+      similarityScore: 1 - index / Math.max(1, result.matches.length),
+      store: {
+        id: new URL(match.source_url).hostname,
+        name: match.store_name,
+        regions: [region],
+        logoUrl: null,
       },
-      body: JSON.stringify({ category: garment.category, region }),
-    });
-  } catch (cause) {
-    throw new UpstreamUnavailableError(`Product search unreachable: ${String(cause)}`);
-  }
-  if (!response.ok) {
-    throw new UpstreamUnavailableError(`Product search responded ${response.status}`);
-  }
-  return (await response.json()) as ProviderResponse;
+    })),
+  };
 }
 
 /**
@@ -89,8 +193,9 @@ async function queryProvider(
 export async function findMatches(
   garment: DetectedGarment,
   region: string,
+  context: MatchContext,
 ): Promise<MatchResult> {
-  const { listings } = await queryProvider(garment, region);
+  const { listings } = await queryProvider(garment, region, context);
 
   const regionEligible = listings.filter((listing) =>
     listing.store.regions.includes(region),

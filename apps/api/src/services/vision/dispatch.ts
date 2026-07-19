@@ -10,6 +10,11 @@
  */
 
 import type { BoundingRegion, DetectedGarment, DetectedPerson } from '../../types/scan';
+// NOTE: googleProvider imports UpstreamUnavailableError back from this file —
+// a benign cycle (each side touches the other only inside function bodies,
+// never during module evaluation), kept over extracting an errors module
+// that would exist purely to break a harmless loop.
+import { GoogleVisionProvider } from './googleProvider';
 import { MockVisionProvider } from './mockProvider';
 
 /**
@@ -130,14 +135,16 @@ class CloudVisionProvider implements VisionProvider {
 }
 
 /**
- * Provider selection: explicit VISION_PROVIDER=mock wins; otherwise mock is
- * the automatic dev fallback when no real endpoint is configured outside
- * production. In production an unconfigured endpoint stays a loud
- * UPSTREAM_UNAVAILABLE — silently mocking real user traffic would be worse
- * than failing.
+ * Provider selection: explicit VISION_PROVIDER=mock wins; then Google Cloud
+ * Vision when its key is present (the beta's real provider, 2026-07-19);
+ * otherwise mock is the automatic dev fallback when no real endpoint is
+ * configured outside production. In production an unconfigured provider
+ * stays a loud UPSTREAM_UNAVAILABLE — silently mocking real user traffic
+ * would be worse than failing.
  */
 function selectProvider(): VisionProvider {
   if (process.env.VISION_PROVIDER === 'mock') return new MockVisionProvider();
+  if (process.env.GOOGLE_VISION_API_KEY) return new GoogleVisionProvider();
   if (!process.env.VISION_API_URL && process.env.NODE_ENV !== 'production') {
     return new MockVisionProvider();
   }
